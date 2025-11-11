@@ -4,12 +4,28 @@ interface User {
   username: string;
 }
 
+interface DeviceStatus {
+  isOnline: boolean;
+  lastSeen?: string;
+  lastDistance?: number;
+  lastCommand?: string;
+  lastCommandStatus?: string;
+  lastCommandTime?: string;
+  settingsApplied?: boolean;
+  settingsError?: string | null;
+  lastSettingsUpdate?: string;
+}
+
 interface AppState {
   // Auth
   isAuthenticated: boolean;
   user: User | null;
   setUser: (user: User | null) => void;
   logout: () => void;
+
+  // Device
+  deviceStatus: DeviceStatus | null;
+  setDeviceStatus: (status: DeviceStatus | null) => void;
 
   // UI
   isLoading: boolean;
@@ -26,6 +42,10 @@ const useStore = create<AppState>((set) => ({
     localStorage.removeItem('pinLockTime');
     set({ user: null, isAuthenticated: false });
   },
+
+  // Device
+  deviceStatus: null,
+  setDeviceStatus: (status) => set({ deviceStatus: status }),
 
   // UI
   isLoading: false,
