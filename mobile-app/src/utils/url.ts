@@ -7,7 +7,7 @@
  * @returns Base URL for accessing static files and photos
  */
 export const getBaseURL = (): string => {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:9090/api';
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://13.213.57.228:9090/api';
   return apiUrl.replace('/api', '');
 };
 
@@ -25,5 +25,5 @@ export const getPhotoURL = (photoPath: string): string => {
  * @returns WhatsApp backend base URL
  */
 export const getWhatsAppURL = (): string => {
-  return import.meta.env.VITE_WA_API_URL || 'http://localhost:9001/api';
+  return import.meta.env.VITE_WA_API_URL || 'http://13.213.57.228:9090/api';
 };

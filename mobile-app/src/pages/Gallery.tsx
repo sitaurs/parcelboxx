@@ -76,7 +76,7 @@ export default function Gallery() {
   
   const handleShare = async (photoUrl: string) => {
     // Share via WhatsApp or system share
-    const fullUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:9090'}${photoUrl}`;
+    const fullUrl = `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://13.213.57.228:9090'}${photoUrl}`;
     
     if (navigator.share) {
       try {
@@ -203,8 +203,8 @@ export default function Gallery() {
           {filteredPackages.map((pkg, index) => (
             <div key={pkg.id} className="hover-lift transition-smooth">
               <PhotoItem
-                src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:9090'}${pkg.photoUrl}`}
-                thumbSrc={pkg.thumbUrl ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:9090'}${pkg.thumbUrl}` : undefined}
+                src={`${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://13.213.57.228:9090'}${pkg.photoUrl}`}
+                thumbSrc={pkg.thumbUrl ? `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://13.213.57.228:9090'}${pkg.thumbUrl}` : undefined}
                 timestamp={new Date(pkg.timestamp).toLocaleString('id-ID', { 
                   day: '2-digit', 
                   month: 'short', 
@@ -224,7 +224,7 @@ export default function Gallery() {
         <Lightbox
           photos={filteredPackages.map(p => ({
             id: p.id,
-            src: `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://localhost:9090'}${p.photoUrl}`,
+            src: `${import.meta.env.VITE_API_URL?.replace('/api', '') || 'http://13.213.57.228:9090'}${p.photoUrl}`,
             timestamp: new Date(p.timestamp).toLocaleString('id-ID')
           }))}
           currentIndex={lightboxIndex}

@@ -9,16 +9,19 @@
 #include <Wire.h>
 #include <LiquidCrystal_I2C.h>
 #include <ESP8266WiFi.h>
+#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h>
 #include <ArduinoJson.h>
 
 // ----------------- WiFi & MQTT Config -----------------
-const char* ssid = "ppp";  // Same WiFi as ESP32-CAM
-const char* password = "12345678";  // Same WiFi as ESP32-CAM
-const char* mqtt_server = "13.213.57.228";  // Your VPS IP
-const int mqtt_port = 1883;
-const char* mqtt_user = "smartbox";  // MQTT authentication
-const char* mqtt_pass = "engganngodinginginmcu";  // MQTT authentication
+// WiFi credentials will be configured via WiFiManager portal
+// Default fallback (optional - will use saved credentials first)
+const char* ssid = "ether-20-20-20-1";
+const char* password = "asdasdasd";
+const char* mqtt_server = "3.27.0.139";  // MQTT Broker
+const int mqtt_port = 1884;
+const char* mqtt_user = "mcuzaman";  // MQTT authentication
+const char* mqtt_pass = "McuZaman#2025Aman!";  // MQTT authentication
 
 // MQTT Topics
 const char* topic_control = "smartparcel/lock/control";  // Subscribe: receive unlock commands from PWA
@@ -83,28 +86,39 @@ const unsigned long durasiLockout = 30000; // 30 detik - Lockout after failed at
 void setupWiFi() {
   delay(10);
   lcd.clear();
-  lcd.setCursor(0,0); lcd.print("Connecting WiFi");
-  lcd.setCursor(0,1); lcd.print("Please wait...");
+  lcd.setCursor(0,0); lcd.print("WiFi Setup...");
+  lcd.setCursor(0,1); lcd.print("Starting...");
   
-  WiFi.begin(ssid, password);
+  WiFiManager wm;
   
-  int attempts = 0;
-  while (WiFi.status() != WL_CONNECTED && attempts < 20) {
-    delay(500);
-    attempts++;
-  }
+  // Reset settings for testing - comment out after first setup
+  // wm.resetSettings();
   
-  if (WiFi.status() == WL_CONNECTED) {
+  // Set custom AP name and password for config portal
+  wm.setConfigPortalTimeout(180); // 3 minutes timeout
+  wm.setAPCallback([](WiFiManager *myWiFiManager) {
     lcd.clear();
-    lcd.setCursor(0,0); lcd.print("WiFi Connected!");
-    lcd.setCursor(0,1); lcd.print(WiFi.localIP());
-    delay(1500);
-  } else {
+    lcd.setCursor(0,0); lcd.print("Config Portal");
+    lcd.setCursor(0,1); lcd.print(myWiFiManager->getConfigPortalSSID());
+    delay(2000);
+    lcd.clear();
+    lcd.setCursor(0,0); lcd.print("Connect to WiFi");
+    lcd.setCursor(0,1); lcd.print("192.168.4.1");
+  });
+  
+  // Auto-connect using saved credentials, or start config portal
+  if (!wm.autoConnect("parcelbox-setup-lock", "smartbox123")) {
     lcd.clear();
     lcd.setCursor(0,0); lcd.print("WiFi Failed!");
-    lcd.setCursor(0,1); lcd.print("Using offline");
-    delay(1500);
+    lcd.setCursor(0,1); lcd.print("Restarting...");
+    delay(3000);
+    ESP.restart();
   }
+  
+  lcd.clear();
+  lcd.setCursor(0,0); lcd.print("WiFi Connected!");
+  lcd.setCursor(0,1); lcd.print(WiFi.localIP());
+  delay(1500);
 }
 
 void mqttCallback(char* topic, byte* payload, unsigned int length) {

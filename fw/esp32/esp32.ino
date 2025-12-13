@@ -1,27 +1,22 @@
-/******** ESP32-CAM AIO — HC-SR04 + Camera + Flash + 2x Relay + MQTT Settings/Control ********
- * - Sensor utama: HC-SR04 (publish 1 Hz ke .../sensor/distance)
- * - Window deteksi [min..max] cm -> pipeline: foto+upload -> tunda -> solenoid ON (lockMs) -> OFF -> buzzer buzzerMs
- * - Control: capture, flash on/off/pulse, buzzer start/stop, lock open/closed/pulse, pipeline stop
- * - Settings: {"ultra":{"min":..,"max":..},"lock":{"ms":..},"buzzer":{"ms":..},"apply":true}
- * Pin (ESP32-CAM AI-Thinker):
- *   TRIG=GPIO15, ECHO=GPIO2 (wajib divider 5V->3V3), REL1=GPIO13 (solenoid), REL2=GPIO14 (buzzer), FLASH=GPIO4
- ***************************************************************************************/
-
 #include <WiFi.h>
+#include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h>
 #include "esp_camera.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
 #include <limits.h>  // untuk LONG_MIN
+#include "esp_wifi.h" // esp_wifi_connect() & reason codes
 
-// ===================== KONFIG WIFI & MQTT =====================
-const char* WIFI_SSID = "ppp";
-const char* WIFI_PASS = "12345678";
+// ===================== WIFI & MQTT CONFIG =====================
+// WiFi credentials will be configured via WiFiManager portal
+// Default fallback (optional - will use saved credentials first)
+const char* WIFI_SSID = "ether-20-20-20-1";
+const char* WIFI_PASS = "asdasdasd";
 
-const char* MQTT_HOST = "13.213.57.228";
-const uint16_t MQTT_PORT = 1883;
-const char* MQTT_USER = "smartbox";
-const char* MQTT_PASSW = "engganngodinginginmcu";
+const char* MQTT_HOST = "3.27.0.139";
+const uint16_t MQTT_PORT = 1884;
+const char* MQTT_USER = "mcuzaman";
+const char* MQTT_PASSW = "McuZaman#2025Aman!";
 
 // Device/Topics
 const char* DEV_ID = "box-01";
@@ -36,21 +31,19 @@ String T_SETCUR   = String("smartparcel/")+DEV_ID+"/settings/cur";
 String T_SETACK   = String("smartparcel/")+DEV_ID+"/settings/ack";
 
 // Backend HTTP (RAW TCP hemat RAM)
-const char* SERVER_HOST = "13.213.57.228";  // ganti ke backend kamu
-const uint16_t SERVER_PORT = 9090;  // Updated to match new backend port
+const char* SERVER_HOST = "3.27.0.139";
+const uint16_t SERVER_PORT = 9090;
 const char* SERVER_PATH = "/api/v1/packages";
-// DEVICE JWT TOKEN - Generate via POST /api/v1/device/generate-token endpoint
-// Legacy plain token supported for backward compatibility but JWT recommended
-// Example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
-const char* API_BEARER  = "device_token_change_this"; // Replace with JWT token from backend
+// DEVICE JWT TOKEN (Valid 1 year - Generated Nov 18, 2025)
+const char* API_BEARER  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImJveC0wMSIsInR5cGUiOiJkZXZpY2UiLCJpYXQiOjE3NjM0ODAzODUsImV4cCI6MTc5NTAxNjM4NX0.FxB_a-HtRR9ROks0cPVtesRObQqAUDYbOSB3590g4sM";
 
 // ===================== PIN ESP32-CAM (AI-Thinker) =====================
 // HC-SR04
-#define PIN_TRIG   15
+#define PIN_TRIG   14
 #define PIN_ECHO    2   // WAJIB divider 5V->3V3 ke pin ini
 // Relay
 #define PIN_REL1   13   // solenoid (door lock)
-#define PIN_REL2   14   // buzzer (via relay/MOSFET)
+#define PIN_REL2   15   // buzzer (via relay/MOSFET)
 // Flash LED
 #define PIN_FLASH   4   // LED flash kamera
 
@@ -78,12 +71,12 @@ PubSubClient mqtt(tcp);
 const bool RELAY_ACTIVE_LOW = true;
 
 struct Settings {
-  float     minCm   = 12.0f;    // window deteksi minimal
-  float     maxCm   = 25.0f;    // window deteksi maksimal
-  uint32_t  lockMs  = 5000;     // lama solenoid ON
-  uint32_t  buzzerMs= 60000;    // lama buzzer berbunyi total
-  uint16_t  buzzOn  = 500;      // pola buzzer ON
-  uint16_t  buzzOff = 300;      // pola buzzer OFF
+  float     minCm   = 12.0f;
+  float     maxCm   = 25.0f;
+  uint32_t  lockMs  = 5000;
+  uint32_t  buzzerMs= 60000;
+  uint16_t  buzzOn  = 500;
+  uint16_t  buzzOff = 300;
 } S;
 
 bool busy = false;
@@ -93,19 +86,141 @@ volatile bool stopLock = false;
 
 unsigned long tLastPub = 0;
 unsigned long lastPipeline = 0;
-unsigned long lastHolderRelease = 0;  // FIX: Renamed from lastDoorUnlock for clarity (tracks package holder release)
-const unsigned long PIPELINE_COOLDOWN_MS = 15000;   // 15s cooldown between detections
-const unsigned long HOLDER_SAFE_AREA_MS = 15000;    // 15s safe area after holder release (increased from 10s to prevent false detection)
+unsigned long lastHolderRelease = 0;
+const unsigned long PIPELINE_COOLDOWN_MS = 15000;
+const unsigned long HOLDER_SAFE_AREA_MS = 15000;
 float lastCm = NAN;
 
-// Timing constants for pipeline steps
-const uint32_t PHOTO_DELAY_MIN_MS = 2000;  // Minimum delay before photo (randomized 2-3s)
-const uint32_t PHOTO_DELAY_MAX_MS = 3000;  // Maximum delay before photo
-const uint32_t LOCK_DELAY_MIN_MS = 1000;   // Minimum delay before lock release (randomized 1-2s)
-const uint32_t LOCK_DELAY_MAX_MS = 2000;   // Maximum delay before lock release
+// Timing constants
+const uint32_t PHOTO_DELAY_MIN_MS = 2000;
+const uint32_t PHOTO_DELAY_MAX_MS = 3000;
+const uint32_t LOCK_DELAY_MIN_MS  = 1000;
+const uint32_t LOCK_DELAY_MAX_MS  = 2000;
 
-// H A R U S dideklarasi sebelum dipakai:
 struct UploadResult { bool ok; int http; String body; };
+
+// ===================== WIFI STATE (PATCH) =====================
+bool wifiStarted = false;
+unsigned long lastReconnectTry = 0;
+const unsigned long RECONNECT_COOLDOWN = 10000;
+
+static const char* reasonStr(wifi_err_reason_t r){
+  switch(r){
+    case WIFI_REASON_NO_AP_FOUND: return "NO_AP_FOUND";
+    case WIFI_REASON_AUTH_EXPIRE:
+    case WIFI_REASON_AUTH_FAIL:   return "AUTH_FAIL";
+    case WIFI_REASON_ASSOC_EXPIRE:return "ASSOC_EXPIRE";
+    case WIFI_REASON_HANDSHAKE_TIMEOUT: return "HANDSHAKE_TIMEOUT";
+    case WIFI_REASON_BEACON_TIMEOUT: return "BEACON_TIMEOUT";
+    default: return "OTHER";
+  }
+}
+
+void WiFiEvent(WiFiEvent_t event, WiFiEventInfo_t info){
+  switch(event){
+    case ARDUINO_EVENT_WIFI_STA_START:
+      Serial.println("[WIFI] STA start");
+      break;
+    case ARDUINO_EVENT_WIFI_STA_CONNECTED:
+      Serial.printf("[WIFI] Connected to SSID '%s'\n", WIFI_SSID);
+      break;
+    case ARDUINO_EVENT_WIFI_STA_GOT_IP:
+      Serial.printf("[WIFI] Got IP: %s\n", WiFi.localIP().toString().c_str());
+      break;
+    case ARDUINO_EVENT_WIFI_STA_DISCONNECTED: {
+      auto r = static_cast<wifi_err_reason_t>(info.wifi_sta_disconnected.reason);
+      Serial.printf("[WIFI] Disconnected: reason=%d (%s)\n", r, reasonStr(r));
+      if (millis() - lastReconnectTry > RECONNECT_COOLDOWN){
+        lastReconnectTry = millis();
+        esp_wifi_connect();
+        Serial.println("[WIFI] Reconnect requested");
+      }
+      break;
+    }
+    default: break;
+  }
+}
+
+// Tombol reset WiFi - Tahan GPIO 0 (BOOT button) saat power on untuk reset WiFi
+#define WIFI_RESET_PIN 0  // GPIO0 = BOOT button pada ESP32-CAM
+
+bool shouldResetWiFi() {
+  pinMode(WIFI_RESET_PIN, INPUT_PULLUP);
+  delay(100);
+  // Jika tombol BOOT ditekan saat startup (LOW), reset WiFi
+  if (digitalRead(WIFI_RESET_PIN) == LOW) {
+    Serial.println("[WIFIMGR] BOOT button pressed - Will reset WiFi settings!");
+    // Tunggu sampai tombol dilepas
+    unsigned long pressStart = millis();
+    while (digitalRead(WIFI_RESET_PIN) == LOW && millis() - pressStart < 5000) {
+      delay(100);
+    }
+    return true;
+  }
+  return false;
+}
+
+void startWiFiOnce(){
+  if (wifiStarted) return;
+  wifiStarted = true;
+
+  WiFi.mode(WIFI_STA);
+  WiFi.setSleep(false);
+  WiFi.onEvent(WiFiEvent);
+  
+  // WiFiManager with custom portal name
+  WiFiManager wm;
+  
+  // UNCOMMENT BARIS INI SEKALI UNTUK RESET WIFI, LALU COMMENT LAGI
+  // wm.resetSettings();
+  // Serial.println("[WIFIMGR] WiFi settings RESET!");
+  
+  // Cek apakah perlu reset WiFi (tombol BOOT ditekan saat startup)
+  if (shouldResetWiFi()) {
+    Serial.println("[WIFIMGR] Resetting WiFi settings...");
+    wm.resetSettings();
+    delay(1000);
+  }
+  
+  // Set custom AP name and password for config portal
+  wm.setConfigPortalTimeout(300); // 5 minutes timeout (lebih lama)
+  wm.setConnectTimeout(30); // 30 detik timeout untuk connect ke WiFi
+  
+  wm.setAPCallback([](WiFiManager *myWiFiManager) {
+    Serial.println("");
+    Serial.println("╔══════════════════════════════════════════╗");
+    Serial.println("║     WiFi SETUP MODE - Config Portal      ║");
+    Serial.println("╠══════════════════════════════════════════╣");
+    Serial.print("║  SSID: ");
+    Serial.print(myWiFiManager->getConfigPortalSSID());
+    Serial.println("          ║");
+    Serial.println("║  Password: smartbox123                   ║");
+    Serial.println("║  IP: 192.168.4.1                         ║");
+    Serial.println("╚══════════════════════════════════════════╝");
+    Serial.println("");
+    
+    // Kedipkan flash LED untuk indikasi mode setup
+    for(int i=0; i<5; i++) {
+      digitalWrite(PIN_FLASH, HIGH); delay(200);
+      digitalWrite(PIN_FLASH, LOW); delay(200);
+    }
+  });
+  
+  Serial.println("[WIFIMGR] Attempting to connect to saved WiFi...");
+  
+  // Auto-connect using saved credentials, or start config portal
+  if (!wm.autoConnect("parcelbox-setup-cam", "smartbox123")) {
+    Serial.println("[WIFIMGR] Failed to connect after timeout, restarting...");
+    delay(3000);
+    ESP.restart();
+  }
+  
+  Serial.println("[WIFIMGR] Connected successfully!");
+  Serial.printf("[WIFI] IP: %s\n", WiFi.localIP().toString().c_str());
+}
+
+// biarkan kosong (hindari begin() berulang)
+void ensureWiFi(){}
 
 // ===================== UTIL =====================
 inline void relayWrite(uint8_t pin, bool on){
@@ -114,12 +229,10 @@ inline void relayWrite(uint8_t pin, bool on){
 }
 inline void flashOn(bool on){ pinMode(PIN_FLASH, OUTPUT); digitalWrite(PIN_FLASH, on ? HIGH : LOW); }
 
-// “delay” yang tetap proses WiFi/MQTT dan bisa dibatalkan
 bool breatheDelayCancelable(unsigned long ms){
   unsigned long start = millis();
   while (millis()-start < ms){
     if (stopAll) return false;
-    if (WiFi.status()!=WL_CONNECTED) WiFi.reconnect();
     if (mqtt.connected()) mqtt.loop();
     delay(5);
   }
@@ -143,18 +256,6 @@ float ultraCmStable(){
   int nanCnt=(isnan(a)?1:0)+(isnan(b)?1:0)+(isnan(c)?1:0);
   if (nanCnt>=2) return NAN;
   return v[1];
-}
-
-// ===================== WIFI =====================
-void ensureWiFi(){
-  if (WiFi.status()==WL_CONNECTED) return;
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WIFI_SSID, WIFI_PASS);
-  unsigned long t0=millis();
-  while (WiFi.status()!=WL_CONNECTED){
-    delay(300);
-    if (millis()-t0>20000){ WiFi.reconnect(); t0=millis(); }
-  }
 }
 
 // ===================== HTTP MULTIPART (RAW TCP) =====================
@@ -183,7 +284,6 @@ UploadResult httpUploadMultipart(const String& metaJson, const uint8_t* img, siz
   tcp.write(img, len);
   tcp.print(tail);
 
-  // OPTIMIZED: Increased timeout 10s -> 30s for slow backend operations
   unsigned long t0=millis(); String statusLine="";
   while (tcp.connected() && millis()-t0<30000){
     if (tcp.available()){ statusLine = tcp.readStringUntil('\n'); break; }
@@ -205,7 +305,7 @@ UploadResult httpUploadMultipart(const String& metaJson, const uint8_t* img, siz
   return r;
 }
 
-// ===================== JSON HELPERS simpel =====================
+// ===================== JSON HELPERS =====================
 long extractJsonLong(const String& body, const char* key){
   String k = String("\"")+key+"\":";
   int p = body.indexOf(k); if (p<0) return LONG_MIN;
@@ -228,7 +328,7 @@ String extractJsonString(const String& body, const char* key){
   return body.substring(p,q);
 }
 
-// ===================== CAPTURE + UPLOAD (ACK detail) =====================
+// ===================== CAPTURE + UPLOAD =====================
 bool captureAndUploadWithRetry(const char* reason, float cm){
   const int MAX_TRY = 5;
   for (int attempt=1; attempt<=MAX_TRY; ++attempt){
@@ -240,7 +340,7 @@ bool captureAndUploadWithRetry(const char* reason, float cm){
     if (!fb){
       mqtt.publish(T_PHSTAT.c_str(), "{\"ok\":false,\"err\":\"no_frame\"}", false);
       delay(500 * attempt);
-      continue; // Retry if no frame captured
+      continue;
     }
 
     String meta = String("{\"deviceId\":\"")+DEV_ID+
@@ -269,18 +369,14 @@ bool captureAndUploadWithRetry(const char* reason, float cm){
 
     mqtt.publish(T_PHSTAT.c_str(), ack.c_str(), false);
     esp_camera_fb_return(fb);
-    
-    // FIX: Stop immediately if upload successful
+
     if (ur.ok) {
       Serial.printf("[PHOTO] Upload success on attempt %d (HTTP %d)\n", attempt, ur.http);
-      return true; // SUCCESS - stop retrying
+      return true;
     }
-    
-    // Failed, retry only if attempts remaining
+
     Serial.printf("[PHOTO] Upload failed attempt %d (HTTP %d), retrying...\n", attempt, ur.http);
-    if (attempt < MAX_TRY) {
-      delay(700 * attempt); // Exponential backoff
-    }
+    if (attempt < MAX_TRY) delay(700 * attempt);
   }
   Serial.println("[PHOTO] All upload attempts failed");
   return false;
@@ -309,15 +405,13 @@ void lockPulseMs(uint32_t ms){
 
 // ===================== PIPELINE =====================
 void runPipeline(float cm){
-  // CRITICAL FIX: Double-check busy flag for atomic safety
-  if (busy) {
-    Serial.println("[PIPELINE] Already busy, aborting duplicate call");
-    return;
-  }
-  
-  busy = true; stopAll=false; stopBuzz=false; stopLock=false;
+  // Jangan guard di sini—pemanggil sudah memastikan !busy
+  busy = true;
+  stopAll=false; 
+  stopBuzz=false; 
+  stopLock=false;
 
-  // 1) Tunggu acak 2–3s (prevent immediate capture after detection)
+  // 1) Tunggu acak 2–3s
   uint32_t d1 = PHOTO_DELAY_MIN_MS + (esp_random() % (PHOTO_DELAY_MAX_MS - PHOTO_DELAY_MIN_MS + 1));
   mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"wait_before_photo\",\"ms\":"+String(d1)+"}").c_str(), false);
   if (!breatheDelayCancelable(d1)){ busy=false; return; }
@@ -325,26 +419,24 @@ void runPipeline(float cm){
   // 2) Foto + upload
   bool sent = captureAndUploadWithRetry("detect", cm);
   mqtt.publish(T_EVENT.c_str(), sent? "{\"step\":\"photo_ok\"}" : "{\"step\":\"photo_failed\"}", false);
-  
-  // CRITICAL FIX: Continue pipeline even if photo upload fails (prevent package stuck in holder)
-  if (!sent){ 
-    Serial.println("[PIPELINE] Photo upload failed, but continuing pipeline to unlock holder");
+
+  if (!sent){
+    Serial.println("[PIPELINE] Photo upload failed, but continuing to unlock holder");
     mqtt.publish(T_EVENT.c_str(), "{\"step\":\"photo_failed_continue\",\"reason\":\"prevent_package_stuck\"}", false);
-    // Don't return - continue to unlock solenoid
   }
 
-  // 3) Tunggu acak 1–2s (settle time before releasing holder)
+  // 3) Tunggu acak 1–2s
   uint32_t d2 = LOCK_DELAY_MIN_MS + (esp_random() % (LOCK_DELAY_MAX_MS - LOCK_DELAY_MIN_MS + 1));
   mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"wait_before_lock\",\"ms\":"+String(d2)+"}").c_str(), false);
   if (!breatheDelayCancelable(d2)){ busy=false; return; }
 
-  // 4) Solenoid ON (lockMs) lalu OFF - RELEASE PACKAGE HOLDER
+  // 4) Solenoid ON (lockMs) -> release holder
   mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"lock_on_ms\",\"ms\":"+String(S.lockMs)+"}").c_str(), false);
   lockPulseMs(S.lockMs);
-  lastHolderRelease = millis();  // Track holder release for safe area
+  lastHolderRelease = millis();
   mqtt.publish(T_EVENT.c_str(), "{\"step\":\"lock_off\"}", false);
 
-  // 5) Buzzer (buzzerMs)
+  // 5) Buzzer
   mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"buzzer_ms\",\"ms\":"+String(S.buzzerMs)+"}").c_str(), false);
   buzzerPatternMs(S.buzzerMs);
 
@@ -368,21 +460,17 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
 
   auto ack = [&](const String& j){ mqtt.publish(T_CTRLACK.c_str(), j.c_str(), false); };
 
-  // -------- CONTROL --------
   if (top == T_CTRL){
-    // pipeline stop
     if (s.indexOf("\"pipeline\"")>=0 && s.indexOf("\"stop\"")>=0){
       stopAll = true; stopBuzz = true; stopLock = true;
       ack("{\"ok\":true,\"action\":\"pipeline\",\"state\":\"stopping\"}");
       return;
     }
-    // capture
     if (s.indexOf("\"capture\"")>=0 && s.indexOf("true")>=0){
       bool ok = captureAndUploadWithRetry("manual", lastCm);
       ack(String("{\"ok\":")+(ok?"true":"false")+",\"action\":\"capture\"}");
       return;
     }
-    // flash
     if (s.indexOf("\"flash\"")>=0){
       if (s.indexOf("\"on\"")>=0){ flashOn(true);  ack("{\"ok\":true,\"action\":\"flash\",\"state\":\"on\"}"); return; }
       if (s.indexOf("\"off\"")>=0){ flashOn(false); ack("{\"ok\":true,\"action\":\"flash\",\"state\":\"off\"}"); return; }
@@ -392,30 +480,27 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       ack(String("{\"ok\":true,\"action\":\"flash\",\"detail\":\"pulse_")+ms+"ms\"}");
       return;
     }
-    // buzzer
     if (s.indexOf("\"buzzer\"")>=0){
       if (s.indexOf("\"stop\"")>=0){ stopBuzz = true; relayWrite(PIN_REL2,false); ack("{\"ok\":true,\"action\":\"buzzer\",\"state\":\"stopping\"}"); return; }
-      // start
       int pms = s.indexOf("\"ms\"");
       uint32_t ms = (pms>=0) ? (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt() : S.buzzerMs;
       ack(String("{\"ok\":true,\"action\":\"buzzer\",\"state\":\"start\",\"ms\":")+ms+"}");
       buzzerPatternMs(ms);
       return;
     }
-    // lock
     if (s.indexOf("\"lock\"")>=0){
-      if (s.indexOf("\"open\"")>=0){ 
-        stopLock=true; 
-        relayWrite(PIN_REL1,false); 
-        lastHolderRelease = millis();  // Track holder release
-        ack("{\"ok\":true,\"action\":\"lock\",\"state\":\"open\"}"); 
-        return; 
+      if (s.indexOf("\"open\"")>=0){
+        stopLock=true;
+        relayWrite(PIN_REL1,false);
+        lastHolderRelease = millis();
+        ack("{\"ok\":true,\"action\":\"lock\",\"state\":\"open\"}");
+        return;
       }
       if (s.indexOf("\"closed\"")>=0){ relayWrite(PIN_REL1,true); ack("{\"ok\":true,\"action\":\"lock\",\"state\":\"closed\"}"); return; }
       if (s.indexOf("\"pulse\"")>=0){
         int pms = s.indexOf("\"ms\"");
         uint32_t ms = (pms>=0) ? (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt() : S.lockMs;
-        lastHolderRelease = millis();  // Track holder release
+        lastHolderRelease = millis();
         ack(String("{\"ok\":true,\"action\":\"lock\",\"state\":\"pulse\",\"ms\":")+ms+"}");
         lockPulseMs(ms);
         return;
@@ -424,7 +509,6 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
     return;
   }
 
-  // -------- SETTINGS --------
   if (top == T_SETSET){
     int p;
     p = s.indexOf("\"ultra\"");
@@ -444,7 +528,6 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       if (pms>=0) S.buzzerMs = (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt();
     }
 
-    // validasi sederhana
     if (S.minCm<2 || S.maxCm>S.minCm+300 || S.maxCm>95 || S.minCm>=S.maxCm ||
         S.lockMs>300000UL || S.buzzerMs>300000UL){
       mqtt.publish(T_SETACK.c_str(), "{\"ok\":false,\"err\":\"bad_range\"}", false);
@@ -481,40 +564,72 @@ bool initCameraSafe(){
   c.pin_pwdn=PWDN_GPIO_NUM; c.pin_reset=RESET_GPIO_NUM;
   c.xclk_freq_hz=10000000;
   c.pixel_format=PIXFORMAT_JPEG;
-  c.frame_size=FRAMESIZE_VGA;    // 640x480
-  c.jpeg_quality=12;             // 12=lebih tajam; bisa naikkan ke 14..15 kalau butuh RAM lebih longgar
-  c.fb_count=1;                  // DRAM only
+  c.frame_size=FRAMESIZE_VGA;
+  c.jpeg_quality=12;
+  c.fb_count=1;
   c.fb_location=CAMERA_FB_IN_DRAM;
   c.grab_mode=CAMERA_GRAB_WHEN_EMPTY;
-  return esp_camera_init(&c)==ESP_OK;
+  return (esp_camera_init(&c) == ESP_OK);
 }
 
 // ===================== SETUP/LOOP =====================
 void setup(){
   WRITE_PERI_REG(RTC_CNTL_BROWN_OUT_REG, 0);
-  Serial.begin(115200); delay(50);
-  Serial.println("\n=== ESP32-CAM SmartParcel AIO ===");
+  Serial.begin(115200); 
+  delay(1000);  // Tambah delay untuk stabilisasi serial
+  
+  Serial.println("");
+  Serial.println("========================================");
+  Serial.println("=== ESP32-CAM SmartParcel AIO ===");
+  Serial.println("========================================");
+  Serial.println("[BOOT] Starting initialization...");
 
   // IO init
+  Serial.println("[BOOT] Initializing GPIO...");
   pinMode(PIN_TRIG, OUTPUT); digitalWrite(PIN_TRIG, LOW);
   pinMode(PIN_ECHO, INPUT); // via divider!
   pinMode(PIN_REL1, OUTPUT); pinMode(PIN_REL2, OUTPUT);
   relayWrite(PIN_REL1, false); relayWrite(PIN_REL2, false);
   pinMode(PIN_FLASH, OUTPUT); digitalWrite(PIN_FLASH, LOW);
+  Serial.println("[BOOT] GPIO OK");
 
+  Serial.println("[BOOT] Initializing Camera...");
   if (!initCameraSafe()){
-    Serial.println("[ERR] Camera init failed"); delay(2000); ESP.restart();
+    Serial.println("[ERR] Camera init FAILED!"); 
+    Serial.println("[ERR] Check camera connection and power");
+    Serial.println("[ERR] Restarting in 5 seconds...");
+    delay(5000); 
+    ESP.restart();
   }
+  Serial.println("[BOOT] Camera OK");
 
-  ensureWiFi();
+  Serial.println("[BOOT] Starting WiFi...");
+  startWiFiOnce();
+  Serial.println("[BOOT] WiFi OK");
+  
+  Serial.println("[BOOT] Connecting to MQTT...");
   mqtt.setClient(tcp);
   ensureMQTT();
+  Serial.println("[BOOT] MQTT OK");
+  
   publishSettingsCur();
-  Serial.println("[BOOT] Ready.");
+  Serial.println("");
+  Serial.println("========================================");
+  Serial.println("[BOOT] System Ready!");
+  Serial.println("========================================");
+  Serial.println("");
 }
 
 void loop(){
-  if (WiFi.status()!=WL_CONNECTED) ensureWiFi();
+  // Reconnect WiFi ditangani event + throttle
+  if (WiFi.status()!=WL_CONNECTED){
+    if (millis() - lastReconnectTry > RECONNECT_COOLDOWN){
+      lastReconnectTry = millis();
+      esp_wifi_connect();
+      Serial.println("[WIFI] Reconnect tick");
+    }
+  }
+
   if (!mqtt.connected()) ensureMQTT();
   mqtt.loop();
 
@@ -531,14 +646,11 @@ void loop(){
 
       bool inWindow = (cm>=S.minCm && cm<=S.maxCm);
       bool safeAreaActive = (millis() - lastHolderRelease) < HOLDER_SAFE_AREA_MS;
-      
-      // CRITICAL FIX: Set busy flag BEFORE calling runPipeline to prevent race condition
-      // Safe area prevents false detection right after package drop (holder release)
+
       if (inWindow && !busy && (millis()-lastPipeline>PIPELINE_COOLDOWN_MS) && !safeAreaActive){
-        busy = true; // Pre-set busy flag atomically
         char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"detect\",\"cm\":%.1f}", cm);
         mqtt.publish(T_EVENT.c_str(), ev, false);
-        runPipeline(cm); // This will double-check busy inside
+        runPipeline(cm); // runPipeline yang set busy
       } else if (inWindow && safeAreaActive) {
         Serial.println("[ULTRA] Detection blocked - Safe area active after holder release");
       }

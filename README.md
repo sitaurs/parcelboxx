@@ -128,7 +128,7 @@ PORT=9090
 MQTT_BROKER=mqtt://13.213.57.228:1883
 MQTT_USERNAME=smartparcel
 MQTT_PASSWORD=SmartParcel2025!
-GOWA_API_URL=http://ware-api.flx.web.id
+GOWA_API_URL=http://gowa1.flx.web.id
 GOWA_API_USERNAME=smartparcel
 GOWA_API_PASSWORD=SmartParcel2025!
 ```

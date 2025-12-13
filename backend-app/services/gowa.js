@@ -7,7 +7,7 @@ import fs from 'fs';
 
 class GowaService {
   constructor(config = {}) {
-    this.baseUrl = config.baseUrl || process.env.GOWA_API_URL || 'http://ware-api.flx.web.id';
+    this.baseUrl = config.baseUrl || process.env.GOWA_API_URL || 'http://gowa1.flx.web.id';
     this.username = config.username || process.env.GOWA_USERNAME || 'smartparcel';
     this.password = config.password || process.env.GOWA_PASSWORD || 'SmartParcel2025!';
     this.authHeader = 'Basic ' + Buffer.from(`${this.username}:${this.password}`).toString('base64');

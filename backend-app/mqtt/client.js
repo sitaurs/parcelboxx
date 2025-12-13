@@ -39,10 +39,10 @@ const TOPICS = {
  * Initialize MQTT Client
  */
 export function initMQTT() {
-  const brokerUrl = process.env.MQTT_BROKER || 'mqtt://13.213.57.228:1883';
+  const brokerUrl = process.env.MQTT_BROKER || 'mqtt://3.27.0.139:1884';
   const options = {
-    username: process.env.MQTT_USER || 'smartbox',
-    password: process.env.MQTT_PASS || 'engganngodinginginmcu',
+    username: process.env.MQTT_USER || 'mcuzaman',
+    password: process.env.MQTT_PASS || 'McuZaman#2025Aman!',
     clientId: `backend-app-${Math.random().toString(16).slice(2, 8)}`,
     clean: false, // Persistent session for reliability
     reconnectPeriod: 5000
