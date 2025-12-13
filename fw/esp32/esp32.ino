@@ -34,6 +34,7 @@ String T_SETACK   = String("smartparcel/")+DEV_ID+"/settings/ack";
 const char* SERVER_HOST = "3.27.0.139";
 const uint16_t SERVER_PORT = 9090;
 const char* SERVER_PATH = "/api/v1/packages";
+const char* AI_VERIFY_PATH = "/api/ai/verify-package"; // AI verification endpoint
 // DEVICE JWT TOKEN (Valid 1 year - Generated Nov 18, 2025)
 const char* API_BEARER  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6ImJveC0wMSIsInR5cGUiOiJkZXZpY2UiLCJpYXQiOjE3NjM0ODAzODUsImV4cCI6MTc5NTAxNjM4NX0.FxB_a-HtRR9ROks0cPVtesRObQqAUDYbOSB3590g4sM";
 
@@ -90,6 +91,12 @@ unsigned long lastHolderRelease = 0;
 const unsigned long PIPELINE_COOLDOWN_MS = 15000;
 const unsigned long HOLDER_SAFE_AREA_MS = 15000;
 float lastCm = NAN;
+
+// AI Periodic Check Variables
+unsigned long lastAICheck = 0;
+unsigned long aiCheckInterval = 30000; // Default 30 detik (IDLE mode)
+bool aiCheckEnabled = true; // Flag untuk enable/disable AI periodic check
+String lastAIMode = "IDLE"; // Track current AI mode (IDLE/ACTIVE/COOLDOWN/BOOST)
 
 // Timing constants
 const uint32_t PHOTO_DELAY_MIN_MS = 2000;
@@ -305,6 +312,68 @@ UploadResult httpUploadMultipart(const String& metaJson, const uint8_t* img, siz
   return r;
 }
 
+// ===================== AI VERIFICATION (MULTIPART) =====================
+UploadResult httpAIVerify(const uint8_t* img, size_t len, const char* reason, float cm, bool ultrasonicTriggered){
+  UploadResult r{false, 0, ""};
+  String boundary="----aiVerifyBoundary8f4a2c";
+  
+  // Prepare form fields
+  String formFields = "--"+boundary+"\r\n"
+    "Content-Disposition: form-data; name=\"deviceId\"\r\n\r\n"+String(DEV_ID)+"\r\n"
+    "--"+boundary+"\r\n"
+    "Content-Disposition: form-data; name=\"reason\"\r\n\r\n"+String(reason)+"\r\n";
+  
+  if (!isnan(cm)) {
+    formFields += "--"+boundary+"\r\n"
+      "Content-Disposition: form-data; name=\"distance\"\r\n\r\n"+String(cm,1)+"\r\n";
+  }
+  
+  formFields += "--"+boundary+"\r\n"
+    "Content-Disposition: form-data; name=\"ultrasonicTriggered\"\r\n\r\n"+(ultrasonicTriggered?"true":"false")+"\r\n";
+  
+  String imageHead = "--"+boundary+"\r\n"
+    "Content-Disposition: form-data; name=\"image\"; filename=\"check.jpg\"\r\n"
+    "Content-Type: image/jpeg\r\n\r\n";
+  
+  String tail = "\r\n--"+boundary+"--\r\n";
+  
+  size_t contentLen = formFields.length() + imageHead.length() + len + tail.length();
+
+  if (!tcp.connect(SERVER_HOST, SERVER_PORT)){ r.ok=false; r.http=0; return r; }
+
+  tcp.print(String("POST ")+AI_VERIFY_PATH+" HTTP/1.1\r\n");
+  tcp.print(String("Host: ")+SERVER_HOST+":"+SERVER_PORT+"\r\n");
+  tcp.print("Connection: close\r\n");
+  tcp.print(String("Authorization: Bearer ")+API_BEARER+"\r\n");
+  tcp.print(String("Content-Type: multipart/form-data; boundary=")+boundary+"\r\n");
+  tcp.print(String("Content-Length: ")+contentLen+"\r\n\r\n");
+
+  tcp.print(formFields);
+  tcp.print(imageHead);
+  tcp.write(img, len);
+  tcp.print(tail);
+
+  unsigned long t0=millis(); String statusLine="";
+  while (tcp.connected() && millis()-t0<30000){
+    if (tcp.available()){ statusLine = tcp.readStringUntil('\n'); break; }
+    delay(10);
+  }
+  if (statusLine.length() < 12){ tcp.stop(); r.ok=false; r.http=0; return r; }
+  r.http = statusLine.substring(9,12).toInt();
+  r.ok = (r.http>=200 && r.http<300);
+
+  while (tcp.connected()){
+    String h = tcp.readStringUntil('\n');
+    if (h == "\r" || h.length()==0) break;
+  }
+  while (tcp.connected() || tcp.available()){
+    if (tcp.available()){ r.body += (char)tcp.read(); }
+    else delay(1);
+  }
+  tcp.stop();
+  return r;
+}
+
 // ===================== JSON HELPERS =====================
 long extractJsonLong(const String& body, const char* key){
   String k = String("\"")+key+"\":";
@@ -326,6 +395,14 @@ String extractJsonString(const String& body, const char* key){
   while (q < (int)body.length() && body[q] != '\"') q++;
   if (q>= (int)body.length()) return String("");
   return body.substring(p,q);
+}
+bool extractJsonBool(const String& body, const char* key){
+  String k = String("\"")+key+"\":";
+  int p = body.indexOf(k); if (p<0) return false;
+  p += k.length();
+  while (p < (int)body.length() && (body[p]==' ')) p++;
+  if (p+4 <= (int)body.length() && body.substring(p, p+4) == "true") return true;
+  return false;
 }
 
 // ===================== CAPTURE + UPLOAD =====================
@@ -380,6 +457,84 @@ bool captureAndUploadWithRetry(const char* reason, float cm){
   }
   Serial.println("[PHOTO] All upload attempts failed");
   return false;
+}
+
+// ===================== AI PERIODIC CHECK =====================
+void performAICheck(){
+  if (!aiCheckEnabled || busy) {
+    return; // Skip jika disabled atau sedang busy
+  }
+  
+  Serial.println("[AI] Performing periodic AI check...");
+  
+  // Capture image
+  flashOn(true); delay(80);
+  camera_fb_t* fb = esp_camera_fb_get();
+  flashOn(false);
+  
+  if (!fb){
+    Serial.println("[AI] Failed to capture frame");
+    mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"failed\",\"reason\":\"no_frame\"}", false);
+    return;
+  }
+  
+  // Send to AI API
+  bool ultrasonicTriggered = !isnan(lastCm) && lastCm >= S.minCm && lastCm <= S.maxCm;
+  UploadResult ur = httpAIVerify(fb->buf, fb->len, "periodic", lastCm, ultrasonicTriggered);
+  
+  esp_camera_fb_return(fb);
+  
+  if (!ur.ok) {
+    Serial.printf("[AI] Verification failed (HTTP %d)\n", ur.http);
+    mqtt.publish(T_EVENT.c_str(), String("{\"type\":\"ai_check\",\"status\":\"error\",\"http\":"+String(ur.http)+"}").c_str(), false);
+    return;
+  }
+  
+  // Parse AI response
+  bool hasPackage = extractJsonBool(ur.body, "hasPackage");
+  long confidence = extractJsonLong(ur.body, "confidence");
+  String decision = extractJsonString(ur.body, "decision");
+  String description = extractJsonString(ur.body, "description");
+  long nextInterval = extractJsonLong(ur.body, "nextCheckInterval");
+  String mode = extractJsonString(ur.body, "mode");
+  
+  Serial.printf("[AI] Result: %s (confidence: %ld%%, decision: %s)\n", 
+                hasPackage ? "PACKAGE" : "NO PACKAGE", confidence, decision.c_str());
+  
+  // Update interval jika ada dari backend
+  if (nextInterval != LONG_MIN && nextInterval > 0) {
+    aiCheckInterval = nextInterval * 1000; // Convert to milliseconds
+    if (mode.length() > 0 && mode != lastAIMode) {
+      Serial.printf("[AI] Mode changed: %s -> %s (interval: %lds)\n", 
+                    lastAIMode.c_str(), mode.c_str(), nextInterval);
+      lastAIMode = mode;
+    }
+  }
+  
+  // Publish AI check event
+  String aiEvent = String("{\"type\":\"ai_check\",\"hasPackage\":") + (hasPackage?"true":"false") +
+    ",\"confidence\":" + String(confidence) +
+    ",\"decision\":\"" + decision + "\"" +
+    ",\"description\":\"" + description + "\"" +
+    ",\"mode\":\"" + (mode.length() ? mode : "UNKNOWN") + "\"" +
+    ",\"nextInterval\":" + String(aiCheckInterval/1000) +
+    "}";
+  mqtt.publish(T_EVENT.c_str(), aiEvent.c_str(), false);
+  
+  // Jika AI detect package dengan confidence tinggi, trigger pipeline
+  if (hasPackage && confidence >= 70 && !busy) {
+    bool safeAreaActive = (millis() - lastHolderRelease) < HOLDER_SAFE_AREA_MS;
+    
+    if ((millis()-lastPipeline > PIPELINE_COOLDOWN_MS) && !safeAreaActive){
+      Serial.println("[AI] High confidence package detected, triggering pipeline!");
+      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_trigger\",\"confidence\":"+String(confidence)+",\"action\":\"pipeline\"}", false);
+      runPipeline(lastCm);
+    } else if (safeAreaActive) {
+      Serial.println("[AI] Package detected but safe area active, skipping pipeline");
+    } else {
+      Serial.println("[AI] Package detected but cooldown active, skipping pipeline");
+    }
+  }
 }
 
 // ===================== BUZZER & LOCK =====================
@@ -470,6 +625,23 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       bool ok = captureAndUploadWithRetry("manual", lastCm);
       ack(String("{\"ok\":")+(ok?"true":"false")+",\"action\":\"capture\"}");
       return;
+    }
+    if (s.indexOf("\"aiCheck\"")>=0){
+      if (s.indexOf("\"enable\"")>=0){ 
+        aiCheckEnabled = true; 
+        ack("{\"ok\":true,\"action\":\"aiCheck\",\"state\":\"enabled\"}"); 
+        return; 
+      }
+      if (s.indexOf("\"disable\"")>=0){ 
+        aiCheckEnabled = false; 
+        ack("{\"ok\":true,\"action\":\"aiCheck\",\"state\":\"disabled\"}"); 
+        return; 
+      }
+      if (s.indexOf("\"now\"")>=0){ 
+        ack("{\"ok\":true,\"action\":\"aiCheck\",\"state\":\"starting\"}");
+        performAICheck(); 
+        return; 
+      }
     }
     if (s.indexOf("\"flash\"")>=0){
       if (s.indexOf("\"on\"")>=0){ flashOn(true);  ack("{\"ok\":true,\"action\":\"flash\",\"state\":\"on\"}"); return; }
@@ -633,7 +805,13 @@ void loop(){
   if (!mqtt.connected()) ensureMQTT();
   mqtt.loop();
 
-  // Publish jarak & trigger pipeline
+  // AI Periodic Check
+  if (aiCheckEnabled && (millis() - lastAICheck >= aiCheckInterval)) {
+    lastAICheck = millis();
+    performAICheck();
+  }
+
+  // Publish jarak & trigger pipeline (HC-SR04 as boost)
   if (millis()-tLastPub > 1000){
     tLastPub = millis();
     float cm = ultraCmStable();
@@ -647,10 +825,16 @@ void loop(){
       bool inWindow = (cm>=S.minCm && cm<=S.maxCm);
       bool safeAreaActive = (millis() - lastHolderRelease) < HOLDER_SAFE_AREA_MS;
 
+      // HC-SR04 now acts as BOOST trigger - priority detection
       if (inWindow && !busy && (millis()-lastPipeline>PIPELINE_COOLDOWN_MS) && !safeAreaActive){
-        char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"detect\",\"cm\":%.1f}", cm);
+        char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"ultrasonic_boost\",\"cm\":%.1f}", cm);
         mqtt.publish(T_EVENT.c_str(), ev, false);
-        runPipeline(cm); // runPipeline yang set busy
+        
+        Serial.println("[ULTRA] Boost trigger - performing immediate AI check");
+        // Langsung trigger AI check dengan priority
+        lastAICheck = millis(); // Reset timer
+        performAICheck(); // Will use ultrasonicTriggered=true
+        
       } else if (inWindow && safeAreaActive) {
         Serial.println("[ULTRA] Detection blocked - Safe area active after holder release");
       }

@@ -13,6 +13,7 @@ import authRoutes from './routes/auth.js';
 import packageRoutes from './routes/packages.js';
 import deviceRoutes from './routes/device.js';
 import whatsappRoutes from './routes/whatsapp.js';
+import { aiRoutes, initializeAI } from './routes/ai.js';
 
 // Import auth utilities
 import { cleanExpiredSessions } from './middleware/auth.js';
@@ -56,6 +57,7 @@ app.use('/api/packages', packageRoutes);
 app.use('/api/v1/packages', packageRoutes); // For ESP32-CAM compatibility
 app.use('/api/device', deviceRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/ai', aiRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -72,6 +74,15 @@ app.use((err, req, res, next) => {
 
 // Initialize MQTT connection
 initMQTT();
+
+// Initialize AI service
+console.log('→ Initializing AI service...');
+const aiInitialized = initializeAI();
+if (aiInitialized) {
+  console.log('✓ AI service initialized successfully');
+} else {
+  console.warn('⚠️  AI service not initialized - Gemini API keys not configured');
+}
 
 // Clean expired sessions on startup
 console.log('→ Cleaning expired sessions...');
@@ -120,6 +131,9 @@ app.listen(PORT, () => {
   console.log('  - GET    /api/device/settings');
   console.log('  - PUT    /api/device/settings');
   console.log('  - POST   /api/device/control/*');
+  console.log('  - POST   /api/ai/verify-package (AI)');
+  console.log('  - GET    /api/ai/stats (AI)');
+  console.log('  - GET    /api/ai/health (AI)');
   console.log('');
   console.log('Ready for connections! 🚀');
   console.log('═══════════════════════════════════════════════');
