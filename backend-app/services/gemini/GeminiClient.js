@@ -5,9 +5,18 @@ class GeminiClient {
   constructor(keyPool) {
     this.keyPool = keyPool;
     this.model = 'gemini-2.5-flash';
+    this.maxRetries = 3; // Maximum retry attempts dengan key berbeda
   }
   
-  // Main verification method
+  // Main verification method dengan auto-retry
+  async verifyPackage(imageBuffer, options = {}) {
+    const {
+      reason = 'unknown',
+      distance = null,
+      priority = false
+    } = options;
+    
+  // Main verification method dengan auto-retry
   async verifyPackage(imageBuffer, options = {}) {
     const {
       reason = 'unknown',
@@ -16,85 +25,115 @@ class GeminiClient {
     } = options;
     
     const startTime = Date.now();
-    let selectedKey = null;
+    const usedKeys = []; // Track keys yang sudah dicoba
+    let lastError = null;
     
-    try {
-      // 1. Select API key dari pool
-      selectedKey = this.keyPool.selectKey({ priority });
+    // Retry loop dengan key berbeda
+    for (let attempt = 1; attempt <= this.maxRetries; attempt++) {
+      let selectedKey = null;
       
-      if (!selectedKey) {
-        throw new Error('No available API keys');
-      }
-      
-      console.log(`[Gemini] Using key ${selectedKey.id} (${selectedKey.tier}) for verification`);
-      
-      // 2. Initialize Gemini with selected key
-      const genAI = new GoogleGenerativeAI(selectedKey.key);
-      const model = genAI.getGenerativeModel({ model: this.model });
-      
-      // 3. Prepare prompt
-      const prompt = this.buildPrompt(reason, distance);
-      
-      // 4. Prepare image
-      const imagePart = {
-        inlineData: {
-          data: imageBuffer.toString('base64'),
-          mimeType: 'image/jpeg'
-        }
-      };
-      
-      // 5. Call Gemini API
-      const result = await model.generateContent([prompt, imagePart]);
-      const response = await result.response;
-      const text = response.text();
-      
-      // 6. Parse response
-      const analysis = this.parseResponse(text);
-      
-      // 7. Calculate response time
-      const responseTime = Date.now() - startTime;
-      
-      // 8. Mark success
-      this.keyPool.markSuccess(selectedKey.id, responseTime);
-      
-      // 9. Return result
-      return {
-        success: true,
-        keyId: selectedKey.id,
-        hasPackage: analysis.hasPackage,
-        confidence: analysis.confidence,
-        description: analysis.description,
-        reasoning: analysis.reasoning,
-        responseTime: responseTime,
-        metadata: {
-          model: this.model,
-          reason: reason,
-          distance: distance
-        }
-      };
-      
-    } catch (error) {
-      const responseTime = Date.now() - startTime;
-      
-      // Mark error in key pool
-      if (selectedKey) {
-        const errorType = this.categorizeError(error);
-        this.keyPool.markError(selectedKey.id, errorType, {
-          message: error.message,
-          code: error.status
+      try {
+        // 1. Select API key dari pool (skip keys yang sudah dicoba)
+        selectedKey = this.keyPool.selectKey({ 
+          priority,
+          excludeKeys: usedKeys 
         });
+        
+        if (!selectedKey) {
+          throw new Error(`No available API keys (attempt ${attempt}/${this.maxRetries})`);
+        }
+        
+        usedKeys.push(selectedKey.id);
+        console.log(`[Gemini] Attempt ${attempt}/${this.maxRetries}: Using key ${selectedKey.id} (${selectedKey.tier})`);
+        
+        // 2. Initialize Gemini with selected key
+        const genAI = new GoogleGenerativeAI(selectedKey.key);
+        const model = genAI.getGenerativeModel({ model: this.model });
+        
+        // 3. Prepare prompt
+        const prompt = this.buildPrompt(reason, distance);
+        
+        // 4. Prepare image
+        const imagePart = {
+          inlineData: {
+            data: imageBuffer.toString('base64'),
+            mimeType: 'image/jpeg'
+          }
+        };
+        
+        // 5. Call Gemini API
+        const result = await model.generateContent([prompt, imagePart]);
+        const response = await result.response;
+        const text = response.text();
+        
+        // 6. Parse response
+        const analysis = this.parseResponse(text);
+        
+        // 7. Calculate response time
+        const responseTime = Date.now() - startTime;
+        
+        // 8. Mark success
+        this.keyPool.markSuccess(selectedKey.id, responseTime);
+        
+        // 9. Return result (SUCCESS - no retry needed)
+        console.log(`[Gemini] ✅ Success on attempt ${attempt} with key ${selectedKey.id}`);
+        return {
+          success: true,
+          keyId: selectedKey.id,
+          attempts: attempt,
+          hasPackage: analysis.hasPackage,
+          confidence: analysis.confidence,
+          description: analysis.description,
+          reasoning: analysis.reasoning,
+          responseTime: responseTime,
+          metadata: {
+            model: this.model,
+            reason: reason,
+            distance: distance
+          }
+        };
+        
+      } catch (error) {
+        const attemptTime = Date.now() - startTime;
+        lastError = error;
+        
+        // Mark error in key pool
+        if (selectedKey) {
+          const errorType = this.categorizeError(error);
+          this.keyPool.markError(selectedKey.id, errorType, {
+            message: error.message,
+            code: error.status
+          });
+          
+          console.error(`[Gemini] ❌ Attempt ${attempt} failed with key ${selectedKey.id}: ${errorType} - ${error.message.substring(0, 100)}`);
+        }
+        
+        // Check if should retry
+        const shouldRetry = this.shouldRetry(error, attempt);
+        
+        if (!shouldRetry || attempt >= this.maxRetries) {
+          console.error(`[Gemini] All ${attempt} attempts failed. Giving up.`);
+          break;
+        }
+        
+        // Wait before retry (exponential backoff)
+        const waitMs = Math.min(1000 * Math.pow(2, attempt - 1), 5000);
+        console.log(`[Gemini] Waiting ${waitMs}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, waitMs));
       }
-      
-      console.error('[Gemini] Verification error:', error.message);
-      
-      return {
-        success: false,
-        error: error.message,
-        errorType: this.categorizeError(error),
-        responseTime: responseTime,
-        keyId: selectedKey?.id || null
-      };
     }
+    
+    // All retries failed
+    const totalTime = Date.now() - startTime;
+    return {
+      success: false,
+      error: lastError?.message || 'Unknown error',
+      errorType: this.categorizeError(lastError),
+      attempts: usedKeys.length,
+      usedKeys: usedKeys,
+      responseTime: totalTime,
+      keyId: null
+    };
   }
   
   // Build prompt for package detection
@@ -175,6 +214,23 @@ RESPOND WITH VALID JSON ONLY:
         reasoning: error.message
       };
     }
+  }
+  
+  // Determine if error is retryable
+  shouldRetry(error, attempt) {
+    // Don't retry on last attempt
+    if (attempt >= this.maxRetries) return false;
+    
+    const errorType = this.categorizeError(error);
+    
+    // Retry on these error types
+    const retryableErrors = [
+      'RATE_LIMIT',    // 429 - Try another key
+      'SERVER_ERROR',  // 500+ - Server issue, might work with another key
+      'TIMEOUT'        // Timeout - Try again
+    ];
+    
+    return retryableErrors.includes(errorType);
   }
   
   // Categorize error type

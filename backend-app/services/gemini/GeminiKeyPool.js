@@ -61,14 +61,15 @@ class GeminiKeyPool {
   
   // Smart key selection with multi-tier fallback
   selectKey(options = {}) {
-    const { priority = false, tier = null } = options;
+    const { priority = false, tier = null, excludeKeys = [] } = options;
     
-    // 1. Filter healthy keys
+    // 1. Filter healthy keys (exclude already tried keys)
     let availableKeys = this.keys.filter(k => 
       k.status === 'active' &&
       k.requestsThisMinute < k.minuteQuotaLimit &&
       k.requestsToday < k.dailyQuotaLimit &&
-      k.consecutiveErrors < 3
+      k.consecutiveErrors < 3 &&
+      !excludeKeys.includes(k.id)  // NEW: Skip already tried keys
     );
     
     if (availableKeys.length === 0) {
