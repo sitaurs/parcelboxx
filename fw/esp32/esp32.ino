@@ -23,9 +23,9 @@ const char* WIFI_SSID = "ether-20-20-20-1";
 const char* WIFI_PASS = "asdasdasd";
 
 const char* MQTT_HOST = "3.27.0.139";
-const uint16_t MQTT_PORT = 1884;
+const uint16_t MQTT_PORT = 1883;
 const char* MQTT_USER = "mcuzaman";
-const char* MQTT_PASSW = "McuZaman#2025Aman!";
+const char* MQTT_PASSW = "SimplePass123";
 
 // Device/Topics
 const char* DEV_ID = "box-01";
@@ -537,7 +537,8 @@ void performAICheck(){
     
     if ((millis()-lastPipeline > PIPELINE_COOLDOWN_MS) && !safeAreaActive){
       Serial.println("[AI] High confidence package detected, triggering pipeline!");
-      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_trigger\",\"confidence\":"+String(confidence)+",\"action\":\"pipeline\"}", false);
+      String aiTrigger = String("{\"type\":\"ai_trigger\",\"confidence\":") + String(confidence) + ",\"action\":\"pipeline\"}";
+      mqtt.publish(T_EVENT.c_str(), aiTrigger.c_str(), false);
       runPipeline(lastCm);
     } else if (safeAreaActive) {
       Serial.println("[AI] Package detected but safe area active, skipping pipeline");
