@@ -257,16 +257,34 @@ bool breatheDelayCancelable(unsigned long ms){
 }
 
 float ultraOne(uint32_t tout=40000UL){
-  digitalWrite(PIN_TRIG, LOW); delayMicroseconds(5);
-  digitalWrite(PIN_TRIG, HIGH); delayMicroseconds(10);
+  // Ensure TRIG starts LOW
+  pinMode(PIN_TRIG, OUTPUT);
   digitalWrite(PIN_TRIG, LOW);
+  delayMicroseconds(10);  // Increased from 5us
+  
+  // Send 10us HIGH pulse
+  digitalWrite(PIN_TRIG, HIGH);
+  delayMicroseconds(10);
+  digitalWrite(PIN_TRIG, LOW);
+  
+  // Wait for response on ECHO pin
   unsigned long dur = pulseIn(PIN_ECHO, HIGH, tout);
+  
   if (!dur || dur == 0) {
     // Debug: Check if ECHO pin is working
     static unsigned long lastDebug = 0;
     if (millis() - lastDebug > 5000) {
-      Serial.printf("[ULTRA-DEBUG] TRIG=%d ECHO=%d, pulseIn timeout\n", 
-                    digitalRead(PIN_TRIG), digitalRead(PIN_ECHO));
+      int trigState = digitalRead(PIN_TRIG);
+      int echoState = digitalRead(PIN_ECHO);
+      Serial.printf("[ULTRA-DEBUG] TRIG=%d ECHO=%d, pulseIn timeout\n", trigState, echoState);
+      
+      // Additional diagnostic
+      if (echoState == HIGH) {
+        Serial.println("[ULTRA-WARN] ECHO stuck HIGH! Check wiring:");
+        Serial.println("  - Possible: VCC connected to ECHO instead of VCC pin");
+        Serial.println("  - Possible: Short circuit or damaged sensor");
+      }
+      
       lastDebug = millis();
     }
     return NAN;
@@ -390,6 +408,10 @@ UploadResult httpAIVerify(const uint8_t* img, size_t len, const char* reason, fl
     else delay(1);
   }
   tcp.stop();
+  
+  // Ensure connection fully closed before camera can be used again
+  delay(100);
+  
   return r;
 }
 
@@ -489,24 +511,31 @@ void performAICheck(){
   // Capture image with retry
   camera_fb_t* fb = NULL;
   for (int retry = 0; retry < 3; retry++) {
+    if (retry > 0) {
+      // Wait longer between retries to ensure camera is ready
+      Serial.printf("[AI] Capture retry %d/3...\n", retry);
+      delay(500);  // Increased from 200ms
+    }
+    
     flashOn(true); delay(100);
     fb = esp_camera_fb_get();
     flashOn(false);
     
-    if (fb) break;
-    
-    Serial.printf("[AI] Capture retry %d/3...\n", retry + 1);
-    delay(200);
+    if (fb) {
+      Serial.printf("[AI] Frame captured: %d bytes\n", fb->len);
+      break;
+    }
   }
   
   if (!fb){
     Serial.println("[AI] Failed to capture frame after 3 retries");
     Serial.println("[AI] Possible causes: camera busy, low power, or hardware issue");
+    Serial.println("[AI] Try reducing AI check interval or disable periodic checks");
     mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"failed\",\"reason\":\"no_frame_after_retry\"}", false);
     return;
   }
   
-  Serial.printf("[AI] Frame captured: %d bytes\n", fb->len);
+  // Don't print bytes here, already printed in retry loop
   
   // Send to AI API
   bool ultrasonicTriggered = !isnan(lastCm) && lastCm >= S.minCm && lastCm <= S.maxCm;
