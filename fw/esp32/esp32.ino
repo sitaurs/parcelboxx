@@ -257,11 +257,20 @@ bool breatheDelayCancelable(unsigned long ms){
 }
 
 float ultraOne(uint32_t tout=40000UL){
-  digitalWrite(PIN_TRIG, LOW); delayMicroseconds(3);
+  digitalWrite(PIN_TRIG, LOW); delayMicroseconds(5);
   digitalWrite(PIN_TRIG, HIGH); delayMicroseconds(10);
   digitalWrite(PIN_TRIG, LOW);
   unsigned long dur = pulseIn(PIN_ECHO, HIGH, tout);
-  if (!dur) return NAN;
+  if (!dur || dur == 0) {
+    // Debug: Check if ECHO pin is working
+    static unsigned long lastDebug = 0;
+    if (millis() - lastDebug > 5000) {
+      Serial.printf("[ULTRA-DEBUG] TRIG=%d ECHO=%d, pulseIn timeout\n", 
+                    digitalRead(PIN_TRIG), digitalRead(PIN_ECHO));
+      lastDebug = millis();
+    }
+    return NAN;
+  }
   return dur * 0.0343f / 2.0f;
 }
 float ultraCmStable(){
@@ -477,16 +486,27 @@ void performAICheck(){
   
   Serial.println("[AI] Performing periodic AI check...");
   
-  // Capture image
-  flashOn(true); delay(80);
-  camera_fb_t* fb = esp_camera_fb_get();
-  flashOn(false);
+  // Capture image with retry
+  camera_fb_t* fb = NULL;
+  for (int retry = 0; retry < 3; retry++) {
+    flashOn(true); delay(100);
+    fb = esp_camera_fb_get();
+    flashOn(false);
+    
+    if (fb) break;
+    
+    Serial.printf("[AI] Capture retry %d/3...\n", retry + 1);
+    delay(200);
+  }
   
   if (!fb){
-    Serial.println("[AI] Failed to capture frame");
-    mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"failed\",\"reason\":\"no_frame\"}", false);
+    Serial.println("[AI] Failed to capture frame after 3 retries");
+    Serial.println("[AI] Possible causes: camera busy, low power, or hardware issue");
+    mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"failed\",\"reason\":\"no_frame_after_retry\"}", false);
     return;
   }
+  
+  Serial.printf("[AI] Frame captured: %d bytes\n", fb->len);
   
   // Send to AI API
   bool ultrasonicTriggered = !isnan(lastCm) && lastCm >= S.minCm && lastCm <= S.maxCm;
@@ -695,6 +715,33 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
         return;
       }
     }
+    if (s.indexOf("\"diagnostic\"")>=0 || s.indexOf("\"diag\"")>=0){
+      // Diagnostic command - check hardware status
+      Serial.println("[DIAG] Running diagnostic...");
+      
+      // Test ultrasonic
+      float testCm = ultraOne();
+      String ultraStatus = isnan(testCm) ? "FAIL" : "OK";
+      
+      // Test camera
+      flashOn(true); delay(50);
+      camera_fb_t* testFb = esp_camera_fb_get();
+      flashOn(false);
+      String camStatus = testFb ? "OK" : "FAIL";
+      if (testFb) esp_camera_fb_return(testFb);
+      
+      String diagResult = String("{\"ok\":true,\"action\":\"diagnostic\",") +
+        "\"camera\":\"" + camStatus + "\"," +
+        "\"ultrasonic\":\"" + ultraStatus + "\"," +
+        "\"distance\":" + (isnan(testCm) ? "null" : String(testCm,1)) + "," +
+        "\"wifi\":\"" + (WiFi.status()==WL_CONNECTED ? "OK":"FAIL") + "\"," +
+        "\"mqtt\":\"" + (mqtt.connected() ? "OK":"FAIL") + "\"," +
+        "\"freeHeap\":" + String(ESP.getFreeHeap()) + "}";
+      
+      ack(diagResult);
+      Serial.println("[DIAG] Complete");
+      return;
+    }
     return;
   }
 
@@ -828,6 +875,33 @@ void setup(){
     ESP.restart();
   }
   Serial.println("[BOOT] Camera OK");
+
+  // Test camera with single capture
+  Serial.println("[BOOT] Testing camera...");
+  flashOn(true); delay(100);
+  camera_fb_t* testFb = esp_camera_fb_get();
+  flashOn(false);
+  if (testFb) {
+    Serial.printf("[BOOT] Camera test OK (%d bytes)\n", testFb->len);
+    esp_camera_fb_return(testFb);
+  } else {
+    Serial.println("[WARN] Camera test failed, but continuing...");
+  }
+
+  // Test ultrasonic sensor
+  Serial.println("[BOOT] Testing HC-SR04...");
+  delay(500);
+  float testCm = ultraOne();
+  if (!isnan(testCm)) {
+    Serial.printf("[BOOT] HC-SR04 OK (%.1f cm)\n", testCm);
+  } else {
+    Serial.println("[WARN] HC-SR04 not responding!");
+    Serial.println("[WARN] Check connections:");
+    Serial.println("  - TRIG -> GPIO 14");
+    Serial.println("  - ECHO -> GPIO 2 (via 5V->3.3V divider!)");
+    Serial.println("  - VCC  -> 5V");
+    Serial.println("  - GND  -> GND");
+  }
 
   Serial.println("[BOOT] Starting WiFi...");
   startWiFiOnce();
