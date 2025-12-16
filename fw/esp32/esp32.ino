@@ -410,7 +410,11 @@ UploadResult httpAIVerify(const uint8_t* img, size_t len, const char* reason, fl
   tcp.stop();
   
   // Ensure connection fully closed before camera can be used again
-  delay(100);
+  // Increased delay to prevent camera busy issue
+  delay(300);
+  
+  // Force WiFi client cleanup
+  tcp.flush();
   
   return r;
 }
@@ -529,9 +533,20 @@ void performAICheck(){
   
   if (!fb){
     Serial.println("[AI] Failed to capture frame after 3 retries");
-    Serial.println("[AI] Possible causes: camera busy, low power, or hardware issue");
-    Serial.println("[AI] Try reducing AI check interval or disable periodic checks");
-    mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"failed\",\"reason\":\"no_frame_after_retry\"}", false);
+    Serial.println("[AI] Attempting camera recovery (deinit/reinit)...");
+    
+    // Force camera deinit and reinit to recover from busy state
+    esp_camera_deinit();
+    delay(500);
+    
+    if (!initCameraSafe()){
+      Serial.println("[AI-ERR] Camera reinit FAILED! System unstable");
+      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"critical\",\"reason\":\"camera_reinit_failed\"}", false);
+      return;
+    }
+    
+    Serial.println("[AI] Camera recovered successfully");
+    mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"recovered\",\"reason\":\"camera_reset\"}", false);
     return;
   }
   
@@ -541,7 +556,12 @@ void performAICheck(){
   bool ultrasonicTriggered = !isnan(lastCm) && lastCm >= S.minCm && lastCm <= S.maxCm;
   UploadResult ur = httpAIVerify(fb->buf, fb->len, "periodic", lastCm, ultrasonicTriggered);
   
+  // Explicit buffer cleanup to prevent camera busy
   esp_camera_fb_return(fb);
+  fb = NULL;
+  
+  // Give camera time to fully release buffer
+  delay(100);
   
   if (!ur.ok) {
     Serial.printf("[AI] Verification failed (HTTP %d)\n", ur.http);
@@ -769,6 +789,15 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       
       ack(diagResult);
       Serial.println("[DIAG] Complete");
+      return;
+    }
+    if (s.indexOf("\"cameraReset\"")>=0){
+      Serial.println("[CMD] Camera reset requested...");
+      esp_camera_deinit();
+      delay(500);
+      bool ok = initCameraSafe();
+      ack(String("{\"ok\":")+( ok?"true":"false")+",\"action\":\"cameraReset\"}");
+      Serial.println(ok ? "[CMD] Camera reset OK" : "[CMD] Camera reset FAILED");
       return;
     }
     return;
