@@ -1,73 +1,190 @@
-# React + TypeScript + Vite
+# 📱 SmartParcel Mobile App
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Modern React + TypeScript mobile app for SmartParcel IoT system.
 
-Currently, two official plugins are available:
+## ✅ Status: Connected to VPS Backend
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```
+Backend: http://3.27.0.139:9090
+Status:  ✅ Online & Verified
+MQTT:    ✅ Connected (16 topics)
+AI:      ✅ Ready (9 Gemini keys)
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## 🚀 Quick Start
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
+npm run dev
 ```
+
+Access: **http://localhost:5173**
+
+---
+
+## 🔐 Default Login
+
+**First Login:**
+- Username: `zamn`
+- Password: `admin123`
+
+⚠️ **You will be prompted to:**
+1. Change password
+2. Set PIN for device control
+
+---
+
+## 🧪 Test Backend Connection
+
+```bash
+node test-backend-connection.js
+```
+
+Expected output:
+```
+✅ Health Check: 200 OK
+✅ AI Health: 200 OK
+✅ AI Stats: 200 OK
+```
+
+---
+
+## 📚 Documentation
+
+- **[BACKEND_CONNECTION.md](./BACKEND_CONNECTION.md)** - Full VPS connection guide
+- **[test-backend-connection.js](./test-backend-connection.js)** - Automated API tests
+
+---
+
+## 🛠 Tech Stack
+
+- **React 19** + **TypeScript**
+- **Vite** - Fast build tool
+- **TailwindCSS** - Styling
+- **Zustand** - State management
+- **React Router** - Navigation
+- **Framer Motion** - Animations
+- **Lucide React** - Icons
+
+---
+
+## 🔧 Development
+
+### Available Scripts
+
+```bash
+npm run dev      # Start dev server (port 5173)
+npm run build    # Build for production
+npm run preview  # Preview production build
+npm run lint     # Run ESLint
+```
+
+### Project Structure
+
+```
+src/
+├── components/     # Reusable UI components
+├── pages/         # Route pages (Dashboard, Login, etc.)
+├── services/      # API service layer
+├── store/         # Zustand state management
+├── hooks/         # Custom React hooks
+└── utils/         # Helper functions
+```
+
+---
+
+## 🔌 API Configuration
+
+Backend API configured in `src/services/api.ts`:
+
+```typescript
+export const API_URL = 'http://3.27.0.139:9090/api';
+```
+
+### Available Endpoints
+
+**Auth:**
+- `POST /auth/login` - User login
+- `POST /auth/first-setup` - First-time setup
+- `POST /auth/verify-pin` - Verify device PIN
+- `POST /auth/change-password` - Change password
+- `POST /auth/change-pin` - Change PIN
+
+**Packages:**
+- `GET /packages` - Get package history
+- `POST /v1/packages` - Create package (ESP32)
+
+**Device:**
+- `GET /device/status` - Get device status
+- `GET /device/settings` - Get settings
+- `PUT /device/settings` - Update settings
+- `POST /device/control/open` - Open box
+- `POST /device/control/close` - Close box
+- `POST /device/control/lock` - Lock door
+- `POST /device/control/unlock` - Unlock door
+
+**AI:**
+- `GET /ai/health` - AI engine health
+- `GET /ai/stats` - AI statistics
+- `POST /ai/verify-package` - Verify package
+
+---
+
+## 🧪 Testing
+
+Run connection tests:
+```bash
+node test-backend-connection.js
+```
+
+Manual API test:
+```bash
+curl http://3.27.0.139:9090/health
+```
+
+---
+
+## 🚨 Troubleshooting
+
+**Can't connect to backend?**
+1. Check backend health: `curl http://3.27.0.139:9090/health`
+2. Verify VPS is running
+3. Check PM2 logs: `pm2 logs smartparcel-backend`
+
+**Login fails?**
+- Use default credentials: `zamn` / `admin123`
+- Complete first-time setup when prompted
+
+**API timeout?**
+- Default timeout: 30 seconds
+- Check network connection
+- Verify backend is not overloaded
+
+---
+
+## 📦 Production Build
+
+```bash
+npm run build
+npm run preview
+```
+
+Build output: `dist/` directory
+
+---
+
+## 🔐 Security Notes
+
+- Auth tokens stored in localStorage
+- PIN lock after 2 minutes of inactivity
+- JWT-based authentication
+- Protected routes with AuthGuard
+
+---
+
+**Version**: 2.1.0  
+**Last Updated**: December 16, 2025  
+**License**: MIT  
+**Author**: SmartParcel Team
