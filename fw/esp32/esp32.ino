@@ -514,7 +514,7 @@ void performAICheck(){
   
   Serial.println("[AI] Performing periodic AI check...");
   
-  // Capture image with retry and aggressive delays
+  // Capture image with retry and I2C recovery
   camera_fb_t* fb = NULL;
   for (int retry = 0; retry < 3; retry++) {
     if (retry > 0) {
@@ -522,12 +522,8 @@ void performAICheck(){
       Serial.printf("[AI] Capture retry %d/3 (waiting 1s for camera ready)...\n", retry);
       delay(1000);  // Increased to 1 second
       
-      // Try to clear any stuck frame buffer
-      sensor_t* s = esp_camera_sensor_get();
-      if (s && s->reset) {
-        s->reset(s);
-        delay(100);
-      }
+      // Try I2C recovery before retry
+      i2cRecover();
     }
     
     flashOn(true); 
@@ -548,15 +544,26 @@ void performAICheck(){
     Serial.printf("[AI] Failed to capture frame after 3 retries (failure #%d/%d)\n", 
                   consecutiveCameraFailures, MAX_CAMERA_FAILURES);
     
-    // Try sensor reset instead of full deinit (lighter recovery)
-    Serial.println("[AI] Attempting sensor reset...");
-    sensor_t* s = esp_camera_sensor_get();
-    if (s && s->reset) {
-      s->reset(s);
-      delay(200);
-      Serial.println("[AI] Sensor reset complete");
+    // Try I2C recovery and full camera reinit (I2C NACK requires full reset)
+    Serial.println("[AI] Attempting I2C recovery and camera reinit...");
+    
+    // Power cycle camera via PWDN pin
+    pinMode(PWDN_GPIO_NUM, OUTPUT);
+    digitalWrite(PWDN_GPIO_NUM, HIGH); // Power down
+    delay(100);
+    digitalWrite(PWDN_GPIO_NUM, LOW);  // Power up
+    delay(100);
+    
+    // Full deinit/reinit with I2C recovery
+    esp_camera_deinit();
+    delay(300);
+    i2cRecover();
+    
+    if (initCameraSafe()) {
+      Serial.println("[AI] Camera reinit successful after I2C recovery");
+      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"recovered\",\"method\":\"i2c_reset\"}", false);
     } else {
-      Serial.println("[AI-WARN] Sensor reset not available");
+      Serial.println("[AI-ERR] Camera reinit FAILED after I2C recovery!");
     }
     
     // Disable AI check after max failures to prevent infinite loop
@@ -929,7 +936,24 @@ void ensureMQTT(){
 }
 
 // ===================== CAMERA =====================
+// I2C recovery for camera
+void i2cRecover() {
+  // Release I2C bus by toggling SCL
+  pinMode(SIOC_GPIO_NUM, OUTPUT);
+  for(int i = 0; i < 10; i++) {
+    digitalWrite(SIOC_GPIO_NUM, HIGH);
+    delayMicroseconds(5);
+    digitalWrite(SIOC_GPIO_NUM, LOW);
+    delayMicroseconds(5);
+  }
+  digitalWrite(SIOC_GPIO_NUM, HIGH);
+  delay(10);
+}
+
 bool initCameraSafe(){
+  // Try I2C recovery first
+  i2cRecover();
+  
   camera_config_t c{};
   c.ledc_channel=LEDC_CHANNEL_0; c.ledc_timer=LEDC_TIMER_0;
   c.pin_d0=Y2_GPIO_NUM; c.pin_d1=Y3_GPIO_NUM; c.pin_d2=Y4_GPIO_NUM; c.pin_d3=Y5_GPIO_NUM;
