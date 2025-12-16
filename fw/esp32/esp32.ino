@@ -273,18 +273,16 @@ float ultraOne(uint32_t tout=40000UL){
   unsigned long dur = pulseIn(PIN_ECHO, HIGH, tout);
   
   if (!dur || dur == 0) {
-    // Debug: Check if ECHO pin is working
+    // Debug: Check if ECHO pin is working - reduced spam (every 30s instead of 5s)
     static unsigned long lastDebug = 0;
-    if (millis() - lastDebug > 5000) {
+    if (millis() - lastDebug > 30000) {
       int trigState = digitalRead(PIN_TRIG);
       int echoState = digitalRead(PIN_ECHO);
       Serial.printf("[ULTRA-DEBUG] TRIG=%d ECHO=%d, pulseIn timeout\n", trigState, echoState);
       
       // Additional diagnostic
       if (echoState == HIGH) {
-        Serial.println("[ULTRA-WARN] ECHO stuck HIGH! Check wiring:");
-        Serial.println("  - Possible: VCC connected to ECHO instead of VCC pin");
-        Serial.println("  - Possible: Short circuit or damaged sensor");
+        Serial.println("[ULTRA-WARN] ECHO stuck HIGH! Sensor not connected or wiring error");
       }
       
       lastDebug = millis();
