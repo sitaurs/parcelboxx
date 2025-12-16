@@ -108,9 +108,11 @@ float lastCm = NAN;
 
 // AI Periodic Check Variables
 unsigned long lastAICheck = 0;
-unsigned long aiCheckInterval = 30000; // Default 30 detik (IDLE mode)
+unsigned long aiCheckInterval = 60000; // Default 60 detik (IDLE mode) - increased for camera stability
 bool aiCheckEnabled = true; // Flag untuk enable/disable AI periodic check
 String lastAIMode = "IDLE"; // Track current AI mode (IDLE/ACTIVE/COOLDOWN/BOOST)
+int consecutiveCameraFailures = 0; // Track consecutive camera failures
+const int MAX_CAMERA_FAILURES = 3; // Disable AI after 3 failures
 
 // Timing constants
 const uint32_t PHOTO_DELAY_MIN_MS = 2000;
@@ -512,42 +514,69 @@ void performAICheck(){
   
   Serial.println("[AI] Performing periodic AI check...");
   
-  // Capture image with retry
+  // Capture image with retry and aggressive delays
   camera_fb_t* fb = NULL;
   for (int retry = 0; retry < 3; retry++) {
     if (retry > 0) {
-      // Wait longer between retries to ensure camera is ready
-      Serial.printf("[AI] Capture retry %d/3...\n", retry);
-      delay(500);  // Increased from 200ms
+      // Wait much longer between retries
+      Serial.printf("[AI] Capture retry %d/3 (waiting 1s for camera ready)...\n", retry);
+      delay(1000);  // Increased to 1 second
+      
+      // Try to clear any stuck frame buffer
+      sensor_t* s = esp_camera_sensor_get();
+      if (s && s->reset) {
+        s->reset(s);
+        delay(100);
+      }
     }
     
-    flashOn(true); delay(100);
+    flashOn(true); 
+    delay(150);  // Longer flash delay
     fb = esp_camera_fb_get();
     flashOn(false);
     
     if (fb) {
-      Serial.printf("[AI] Frame captured: %d bytes\n", fb->len);
+      Serial.printf("[AI] Frame captured: %d bytes (retry %d)\n", fb->len, retry);
       break;
+    } else {
+      Serial.printf("[AI] Capture failed on retry %d\n", retry);
     }
   }
   
   if (!fb){
-    Serial.println("[AI] Failed to capture frame after 3 retries");
-    Serial.println("[AI] Attempting camera recovery (deinit/reinit)...");
+    consecutiveCameraFailures++;
+    Serial.printf("[AI] Failed to capture frame after 3 retries (failure #%d/%d)\n", 
+                  consecutiveCameraFailures, MAX_CAMERA_FAILURES);
     
-    // Force camera deinit and reinit to recover from busy state
-    esp_camera_deinit();
-    delay(500);
-    
-    if (!initCameraSafe()){
-      Serial.println("[AI-ERR] Camera reinit FAILED! System unstable");
-      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"critical\",\"reason\":\"camera_reinit_failed\"}", false);
-      return;
+    // Try sensor reset instead of full deinit (lighter recovery)
+    Serial.println("[AI] Attempting sensor reset...");
+    sensor_t* s = esp_camera_sensor_get();
+    if (s && s->reset) {
+      s->reset(s);
+      delay(200);
+      Serial.println("[AI] Sensor reset complete");
+    } else {
+      Serial.println("[AI-WARN] Sensor reset not available");
     }
     
-    Serial.println("[AI] Camera recovered successfully");
-    mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"recovered\",\"reason\":\"camera_reset\"}", false);
+    // Disable AI check after max failures to prevent infinite loop
+    if (consecutiveCameraFailures >= MAX_CAMERA_FAILURES) {
+      aiCheckEnabled = false;
+      Serial.println("[AI-ERR] Too many camera failures, disabling AI periodic check!");
+      Serial.println("[AI-ERR] Use MQTT command to re-enable: {\"aiCheck\":{\"enable\":true}}");
+      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"ai_check\",\"status\":\"disabled\",\"reason\":\"max_failures\"}", false);
+    } else {
+      mqtt.publish(T_EVENT.c_str(), 
+        String("{\"type\":\"ai_check\",\"status\":\"retry_failed\",\"failures\":" + 
+        String(consecutiveCameraFailures) + "}").c_str(), false);
+    }
     return;
+  }
+  
+  // Reset failure counter on successful capture
+  if (consecutiveCameraFailures > 0) {
+    Serial.printf("[AI] Camera recovered after %d failures\n", consecutiveCameraFailures);
+    consecutiveCameraFailures = 0;
   }
   
   // Don't print bytes here, already printed in retry loop
@@ -714,7 +743,9 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
     }
     if (s.indexOf("\"aiCheck\"")>=0){
       if (s.indexOf("\"enable\"")>=0){ 
-        aiCheckEnabled = true; 
+        aiCheckEnabled = true;
+        consecutiveCameraFailures = 0; // Reset failure counter
+        Serial.println("[CMD] AI check re-enabled, failure counter reset");
         ack("{\"ok\":true,\"action\":\"aiCheck\",\"state\":\"enabled\"}"); 
         return; 
       }
@@ -793,11 +824,24 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
     }
     if (s.indexOf("\"cameraReset\"")>=0){
       Serial.println("[CMD] Camera reset requested...");
-      esp_camera_deinit();
-      delay(500);
-      bool ok = initCameraSafe();
-      ack(String("{\"ok\":")+( ok?"true":"false")+",\"action\":\"cameraReset\"}");
-      Serial.println(ok ? "[CMD] Camera reset OK" : "[CMD] Camera reset FAILED");
+      
+      // Try sensor reset first (lighter)
+      sensor_t* sens = esp_camera_sensor_get();
+      if (sens && sens->reset) {
+        sens->reset(sens);
+        delay(200);
+        consecutiveCameraFailures = 0;
+        Serial.println("[CMD] Camera sensor reset OK");
+        ack("{\"ok\":true,\"action\":\"cameraReset\",\"method\":\"sensor\"}");
+      } else {
+        // Fallback: full deinit/reinit
+        esp_camera_deinit();
+        delay(500);
+        bool ok = initCameraSafe();
+        if (ok) consecutiveCameraFailures = 0;
+        ack(String("{\"ok\":")+(ok?"true":"false")+",\"action\":\"cameraReset\",\"method\":\"full\"}");
+        Serial.println(ok ? "[CMD] Camera full reset OK" : "[CMD] Camera full reset FAILED");
+      }
       return;
     }
     return;
