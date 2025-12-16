@@ -13,6 +13,9 @@ let mqttClient = null;
 let lastDistance = null;
 let deviceOnlineStatus = false;
 
+// AI Engine reference (will be set by initMQTT)
+let aiEngineRef = null;
+
 const DEVICE_ID = process.env.DEVICE_ID || 'box-01';
 
 // MQTT Topics
@@ -27,6 +30,11 @@ const TOPICS = {
   SETTINGS_CUR: `smartparcel/${DEVICE_ID}/settings/cur`,
   SETTINGS_ACK: `smartparcel/${DEVICE_ID}/settings/ack`,
   
+  // Baseline photo topics
+  BASELINE_TRIGGER: `smartparcel/${DEVICE_ID}/baseline/trigger`,  // Backend -> ESP32: request baseline capture
+  BASELINE_PHOTO: `smartparcel/${DEVICE_ID}/baseline/photo`,      // ESP32 -> Backend: baseline photo data
+  HOLDER_RELEASE: `smartparcel/${DEVICE_ID}/holder/release`,      // ESP32 -> Backend: holder released event
+  
   // ESP8266 Door Lock Topics
   LOCK_CONTROL: 'smartparcel/lock/control',
   LOCK_STATUS: 'smartparcel/lock/status',
@@ -37,10 +45,18 @@ const TOPICS = {
 
 /**
  * Initialize MQTT Client
+ * @param {Object} options - Optional parameters
+ * @param {Object} options.aiEngine - AI Detection Engine instance for baseline capture
  */
-export function initMQTT() {
+export function initMQTT(options = {}) {
+  // Store AI Engine reference for baseline capture
+  if (options.aiEngine) {
+    aiEngineRef = options.aiEngine;
+    console.log('[MQTT] AI Engine linked for baseline capture');
+  }
+  
   const brokerUrl = process.env.MQTT_BROKER || 'mqtt://3.27.0.139:1884';
-  const options = {
+  const mqttOptions = {
     username: process.env.MQTT_USER || 'mcuzaman',
     password: process.env.MQTT_PASS || 'McuZaman#2025Aman!',
     clientId: `backend-app-${Math.random().toString(16).slice(2, 8)}`,
@@ -48,7 +64,7 @@ export function initMQTT() {
     reconnectPeriod: 5000
   };
 
-  mqttClient = mqtt.connect(brokerUrl, options);
+  mqttClient = mqtt.connect(brokerUrl, mqttOptions);
 
   mqttClient.on('connect', () => {
     console.log('✓ MQTT Connected to broker');
@@ -194,6 +210,59 @@ function handleMessage(topic, message) {
       });
     }
     
+    // Holder Release Event (ESP32 signals holder has been released)
+    else if (topic === TOPICS.HOLDER_RELEASE) {
+      const releaseData = JSON.parse(payload);
+      console.log('🔓 Holder released:', releaseData);
+      
+      // Trigger baseline capture on ESP32
+      // Wait a short moment for package to fall through (if any)
+      setTimeout(() => {
+        console.log('[MQTT] Triggering baseline capture after holder release...');
+        publishCommand(TOPICS.BASELINE_TRIGGER, {
+          action: 'capture',
+          reason: 'holder_release',
+          timestamp: new Date().toISOString()
+        });
+      }, 1000); // 1 second delay for package to clear
+    }
+    
+    // Baseline Photo Received (ESP32 sends baseline photo)
+    else if (topic === TOPICS.BASELINE_PHOTO) {
+      console.log('[MQTT] Baseline photo received');
+      
+      // Payload should be JSON with base64 image or URL
+      const baselineData = JSON.parse(payload);
+      
+      if (aiEngineRef && baselineData.image) {
+        // Convert base64 to buffer if needed
+        let imageBuffer;
+        if (typeof baselineData.image === 'string') {
+          // Assume base64 encoded
+          imageBuffer = Buffer.from(baselineData.image, 'base64');
+        } else {
+          imageBuffer = baselineData.image;
+        }
+        
+        // Store baseline in AI Engine
+        aiEngineRef.captureBaseline(DEVICE_ID, imageBuffer, {
+          reason: baselineData.reason || 'holder_release',
+          distance: baselineData.distance || null,
+          verifyEmpty: true // AI will verify holder is empty
+        }).then(result => {
+          if (result.success) {
+            console.log(`[MQTT] ✅ Baseline stored: ${result.baselineId}`);
+          } else {
+            console.warn(`[MQTT] ⚠️ Baseline rejected: ${result.error}`);
+          }
+        }).catch(err => {
+          console.error('[MQTT] ❌ Baseline capture error:', err.message);
+        });
+      } else if (!aiEngineRef) {
+        console.warn('[MQTT] AI Engine not linked - cannot store baseline');
+      }
+    }
+    
   } catch (error) {
     console.error('Error handling MQTT message:', error.message);
   }
@@ -246,6 +315,28 @@ export function publishPinUpdate(pin) {
  */
 export function publishDoorLockSettings(settings) {
   return publishCommand(TOPICS.LOCK_SETTINGS, settings);
+}
+
+/**
+ * Trigger baseline capture on ESP32
+ * @param {string} reason - Reason for capture (e.g., 'holder_release', 'manual', 'package_pickup')
+ */
+export function triggerBaselineCapture(reason = 'manual') {
+  console.log(`[MQTT] Triggering baseline capture: ${reason}`);
+  return publishCommand(TOPICS.BASELINE_TRIGGER, {
+    action: 'capture',
+    reason: reason,
+    timestamp: new Date().toISOString()
+  });
+}
+
+/**
+ * Set AI Engine reference for baseline capture
+ * Can be called after initMQTT if AI Engine wasn't ready at init time
+ */
+export function setAIEngine(aiEngine) {
+  aiEngineRef = aiEngine;
+  console.log('[MQTT] AI Engine linked for baseline capture');
 }
 
 /**

@@ -72,10 +72,7 @@ app.use((err, req, res, next) => {
   });
 });
 
-// Initialize MQTT connection
-initMQTT();
-
-// Initialize AI service
+// Initialize AI service first (needed by MQTT for baseline capture)
 console.log('→ Initializing AI service...');
 const aiInitialized = initializeAI();
 if (aiInitialized) {
@@ -83,6 +80,12 @@ if (aiInitialized) {
 } else {
   console.warn('⚠️  AI service not initialized - Gemini API keys not configured');
 }
+
+// Initialize MQTT connection with AI Engine reference
+import { getAIEngine } from './routes/ai.js';
+const aiEngine = getAIEngine();
+initMQTT({ aiEngine: aiEngine });
+console.log('✓ MQTT connected with AI Engine integration');
 
 // Clean expired sessions on startup
 console.log('→ Cleaning expired sessions...');

@@ -1,12 +1,14 @@
 // AI Detection Engine - Core logic untuk package detection
 import GeminiClient from './GeminiClient.js';
 import GeminiKeyPool from './GeminiKeyPool.js';
+import baselineManager from './BaselinePhotoManager.js';
 
 class AIDetectionEngine {
   constructor(geminiApiKeys) {
     // Initialize key pool and client
     this.keyPool = new GeminiKeyPool(geminiApiKeys);
     this.geminiClient = new GeminiClient(this.keyPool);
+    this.baselineManager = baselineManager;
     
     // Detection settings
     this.config = {
@@ -26,6 +28,10 @@ class AIDetectionEngine {
       // Mode settings
       ultrasonicBoost: true,   // Use HC-SR04 as boost trigger
       distanceThreshold: 15.0, // cm - if distance < 15cm, high priority check
+      
+      // Baseline comparison settings
+      useBaselineComparison: true,  // Enable 2-photo comparison when available
+      baselineMaxAge: 24 * 60 * 60 * 1000, // 24 hours
     };
     
     // Statistics
@@ -36,7 +42,9 @@ class AIDetectionEngine {
       falseNegatives: 0,
       averageConfidence: 0,
       averageResponseTime: 0,
-      retries: 0
+      retries: 0,
+      comparisonChecks: 0,      // NEW: Checks using baseline comparison
+      singleImageChecks: 0      // NEW: Checks using single image
     };
     
     // State
@@ -45,7 +53,7 @@ class AIDetectionEngine {
     this.maxHistory = 20;
   }
   
-  // Main detection method
+  // Main detection method - now with baseline comparison support
   async detectPackage(imageBuffer, options = {}) {
     const {
       reason = 'periodic',
@@ -57,6 +65,110 @@ class AIDetectionEngine {
     
     const detectionId = this.generateDetectionId();
     const startTime = Date.now();
+    
+    // Check if we have a valid baseline for comparison
+    const baseline = await this.baselineManager.getBaseline(deviceId);
+    const useComparison = this.config.useBaselineComparison && baseline.hasBaseline;
+    
+    if (useComparison) {
+      console.log(`[AI-Engine] Using baseline comparison mode (baseline age: ${Math.floor(baseline.age / 1000 / 60)} min)`);
+      this.stats.comparisonChecks++;
+      return this.detectWithComparison(imageBuffer, baseline, detectionId, startTime, options);
+    } else {
+      console.log(`[AI-Engine] Using single-image mode (no valid baseline)`);
+      this.stats.singleImageChecks++;
+      return this.detectSingleImage(imageBuffer, detectionId, startTime, options);
+    }
+  }
+  
+  /**
+   * Detection using baseline comparison (2 photos)
+   */
+  async detectWithComparison(realtimeBuffer, baseline, detectionId, startTime, options) {
+    const { reason, distance, deviceId } = options;
+    
+    try {
+      const priority = this.shouldUsePriority(reason, distance);
+      
+      // Call Gemini with 2 photos
+      let result = await this.geminiClient.compareWithBaseline(
+        baseline.buffer,
+        realtimeBuffer,
+        {
+          reason: reason,
+          distance: distance,
+          priority: priority,
+          baselineAge: baseline.age
+        }
+      );
+      
+      if (!result.success) {
+        throw new Error(`Gemini comparison failed: ${result.error}`);
+      }
+      
+      // Make final decision
+      const decision = this.makeDecision({
+        hasPackage: result.hasNewPackage,
+        confidence: result.confidence
+      }, distance);
+      
+      const totalTime = Date.now() - startTime;
+      
+      const response = {
+        detectionId: detectionId,
+        timestamp: new Date().toISOString(),
+        deviceId: deviceId,
+        
+        // Detection result
+        hasPackage: result.hasNewPackage,
+        confidence: result.confidence,
+        decision: decision.level,
+        
+        // Comparison specific
+        mode: 'comparison',
+        changeDetected: result.changeDetected,
+        comparisonDetails: result.comparisonDetails,
+        baselineAge: baseline.age,
+        
+        // Analysis
+        description: result.description,
+        reasoning: result.reasoning,
+        
+        // Metadata
+        reason: reason,
+        distance: distance,
+        priority: priority,
+        
+        // Performance
+        responseTime: totalTime,
+        geminiTime: result.responseTime,
+        keyUsed: result.keyId,
+        
+        model: result.metadata?.model || 'gemini-2.5-flash'
+      };
+      
+      this.updateStats(response);
+      this.addToHistory(response);
+      this.lastDetection = response;
+      
+      console.log(`[AI-Engine] Comparison complete: ${result.hasNewPackage ? 'NEW PACKAGE' : 'NO CHANGE'} (${result.confidence}% confidence)`);
+      
+      return response;
+      
+    } catch (error) {
+      console.error('[AI-Engine] Comparison detection error:', error.message);
+      
+      // Fallback to single image detection
+      console.log('[AI-Engine] Falling back to single-image detection');
+      return this.detectSingleImage(realtimeBuffer, detectionId, startTime, options);
+    }
+  }
+  
+  /**
+   * Detection using single image (original method)
+   */
+  async detectSingleImage(imageBuffer, detectionId, startTime, options) {
+    const { reason = 'periodic', distance = null, deviceId = 'unknown' } = options;
     
     try {
       // 1. Determine priority
@@ -355,6 +467,97 @@ class AIDetectionEngine {
       this.stats.falseNegatives++;
       console.log(`[AI-Engine] Marked ${detectionId} as false negative`);
     }
+  }
+  
+  // ==================== BASELINE MANAGEMENT ====================
+  
+  /**
+   * Store baseline photo for a device
+   * Called after holder release when the holder is confirmed empty
+   * 
+   * @param {string} deviceId - Device identifier
+   * @param {Buffer} imageBuffer - JPEG image of empty holder
+   * @param {Object} metadata - Additional metadata
+   */
+  async storeBaseline(deviceId, imageBuffer, metadata = {}) {
+    console.log(`[AI-Engine] Storing baseline for ${deviceId}`);
+    
+    const result = await this.baselineManager.storeBaseline(deviceId, imageBuffer, {
+      ...metadata,
+      captureReason: 'holder_release',
+      timestamp: new Date().toISOString()
+    });
+    
+    if (result.success) {
+      console.log(`[AI-Engine] ✅ Baseline stored: ${result.baselineId}`);
+    } else {
+      console.error(`[AI-Engine] ❌ Failed to store baseline: ${result.error}`);
+    }
+    
+    return result;
+  }
+  
+  /**
+   * Invalidate baseline for a device
+   * Called when we know the state has changed (e.g., package picked up)
+   */
+  async invalidateBaseline(deviceId) {
+    console.log(`[AI-Engine] Invalidating baseline for ${deviceId}`);
+    await this.baselineManager.invalidateBaseline(deviceId);
+  }
+  
+  /**
+   * Check if device has valid baseline
+   */
+  hasValidBaseline(deviceId) {
+    return this.baselineManager.hasValidBaseline(deviceId);
+  }
+  
+  /**
+   * Get baseline statistics
+   */
+  getBaselineStats() {
+    return this.baselineManager.getStats();
+  }
+  
+  /**
+   * Capture and store baseline photo
+   * This triggers ESP32 to take a photo and stores it as baseline
+   * Used after holder release
+   * 
+   * @param {string} deviceId - Device identifier
+   * @param {Buffer} imageBuffer - Image captured by ESP32
+   * @param {Object} context - Context about why baseline was captured
+   */
+  async captureBaseline(deviceId, imageBuffer, context = {}) {
+    console.log(`[AI-Engine] Capturing baseline for ${deviceId} after holder release`);
+    
+    // Optional: Quick AI check to confirm holder is empty
+    // This adds reliability but uses API quota
+    if (context.verifyEmpty !== false) {
+      const verification = await this.geminiClient.verifyPackage(imageBuffer, {
+        reason: 'baseline_verification',
+        distance: context.distance,
+        priority: false
+      });
+      
+      if (verification.success) {
+        if (verification.hasPackage && verification.confidence > 60) {
+          console.warn(`[AI-Engine] Baseline rejected - holder not empty (${verification.confidence}% confidence)`);
+          return {
+            success: false,
+            error: 'Holder not empty - cannot use as baseline',
+            confidence: verification.confidence
+          };
+        }
+      }
+    }
+    
+    // Store as baseline
+    return this.storeBaseline(deviceId, imageBuffer, {
+      ...context,
+      verifiedEmpty: true
+    });
   }
 }
 

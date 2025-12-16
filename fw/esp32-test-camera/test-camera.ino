@@ -35,47 +35,37 @@ PubSubClient mqttClient(espClient);
 
 unsigned long lastReconnectAttempt = 0;
 
+#include <Wire.h>
+#include <LiquidCrystal_I2C.h>
+
 // ----------------- Konfigurasi I2C / LCD -----------------
 #define LCD_ADDR 0x27
 LiquidCrystal_I2C lcd(LCD_ADDR, 16, 2);
 
-// ----------------- Mapping Keypad (MODIFIED - 4x3 instead of 4x4) --------
+// ----------------- Mapping Keypad (SAMA spt DIAG) --------
 // Rows = D5(14), D6(12), D7(13), D8(15)  -> kita drive LOW satu-per-satu
 const int ROWS_PINS[4] = {14, 12, 13, 15};
-// Cols = RX(3), TX(1), D3(0)             -> ONLY 3 COLUMNS (column 4/D4 freed for relay)
-const int COLS_PINS[3] = {3, 1, 0}; // Removed GPIO2 (D4)
+// Cols = RX(3), TX(1), D3(0), D4(2)      -> dibaca INPUT_PULLUP
+const int COLS_PINS[4] = {3, 1, 0, 2};
 
-// Keymap 4x3 - Kolom A/B/C/D dihapus, cukup angka 0-9 + * #
-const char KEYMAP[4][3] = {
-  {'1','2','3'},
-  {'4','5','6'},
-  {'7','8','9'},
-  {'*','0','#'}
+const char KEYMAP[4][4] = {
+  {'1','2','3','A'},
+  {'4','5','6','B'},
+  {'7','8','9','C'},
+  {'*','0','#','D'}
 };
 
 // ----------------- Relay -----------------
-// SOLUTION: Keypad column 4 (A/B/C/D) removed, D4 (GPIO2) freed for relay
-// Hardware: Cabut/lepas kabel kolom 4 keypad dari D4, sambungkan relay IN ke D4
-const int RELAY_PIN = 2;         // D4 (GPIO2) -> IN modul relay (was keypad col 4)
-const bool RELAY_ACTIVE_LOW = true;  // Relay module is ACTIVE-LOW
+const int RELAY_PIN = 16;        // D0 (GPIO16) -> IN modul relay
+const bool RELAY_ACTIVE_LOW = true;  // ganti ke false jika relay aktif-HIGH
 
 inline void relayOff() { // pintu terkunci
   digitalWrite(RELAY_PIN, RELAY_ACTIVE_LOW ? HIGH : LOW);
   Serial.println("[RELAY] OFF - Door LOCKED");
-  
-  // Fix LCD corruption from solenoid noise
-  delay(50); // Wait for relay settling
-  lcd.init(); // Re-initialize LCD I2C
-  lcd.backlight();
 }
 inline void relayOn() {  // pintu terbuka
   digitalWrite(RELAY_PIN, RELAY_ACTIVE_LOW ? LOW : HIGH);
   Serial.println("[RELAY] ON - Door UNLOCKED");
-  
-  // Fix LCD corruption from solenoid noise
-  delay(50); // Wait for relay settling
-  lcd.init(); // Re-initialize LCD I2C
-  lcd.backlight();
 }
 
 // ----------------- Pengaturan Doorlock -------------------
@@ -249,7 +239,7 @@ bool reconnectMQTT() {
 void tampilSiap() {
   lcd.clear();
   lcd.setCursor(0,0); lcd.print("Masukkan Kode:");
-  lcd.setCursor(0,1); lcd.print("#=OK  *=Clear");
+  lcd.setCursor(0,1); lcd.print("#=OK  *=Clear  A=<-");
 }
 void info(const char* s, unsigned int tms=800) {
   lcd.clear(); lcd.setCursor(0,0); lcd.print(s); delay(tms);
@@ -258,7 +248,7 @@ void tampilInputMasked() {
   lcd.clear();
   lcd.setCursor(0,0); lcd.print("Kode: ");
   for (size_t i=0; i<inputUser.length(); i++) lcd.print('*');
-  lcd.setCursor(0,1); lcd.print("#=OK  *=Clear");
+  lcd.setCursor(0,1); lcd.print("#=OK  *=Clear  A=<-");
 }
 void tampilCountdownLockout() {
   unsigned long sisa = 0;
@@ -278,7 +268,7 @@ bool anyKeyStillPressed() {
     pinMode(ROWS_PINS[r], OUTPUT);
     digitalWrite(ROWS_PINS[r], LOW);
     delayMicroseconds(200);
-    for (int c=0; c<3; c++) { // Changed from 4 to 3 columns
+    for (int c=0; c<4; c++) {
       if (digitalRead(COLS_PINS[c]) == LOW) return true;
     }
   }
@@ -292,7 +282,7 @@ char scanKeypadOnce() {
     digitalWrite(ROWS_PINS[r], LOW);
     delayMicroseconds(250); // settle
 
-    for (int c=0; c<3; c++) { // Changed from 4 to 3 columns
+    for (int c=0; c<4; c++) {
       pinMode(COLS_PINS[c], INPUT_PULLUP);
       if (digitalRead(COLS_PINS[c]) == LOW) {
         // tunggu release (debounce)
@@ -396,21 +386,23 @@ void setup() {
   
   tampilSiap();
 
-  // Keypad default state (3 columns only)
-  for (int c=0; c<3; c++) pinMode(COLS_PINS[c], INPUT_PULLUP); // Changed from 4 to 3
+  // Keypad default state
+  for (int c=0; c<4; c++) pinMode(COLS_PINS[c], INPUT_PULLUP);
   for (int r=0; r<4; r++) pinMode(ROWS_PINS[r], INPUT);
   
   Serial.println("[SETUP] Keypad ready");
 
-  // Relay - Simple initialization (GPIO2 is stable, no GPIO16 issues)
+  // Relay - EXPLICIT INITIALIZATION
   pinMode(RELAY_PIN, OUTPUT);
-  digitalWrite(RELAY_PIN, HIGH); // Force OFF state (ACTIVE_LOW)
-  delay(100);
   
-  relayOff(); // Ensure locked state
+  // CRITICAL FIX: Ensure relay is OFF immediately after pinMode
+  digitalWrite(RELAY_PIN, HIGH); // Force HIGH (relay OFF if ACTIVE_LOW)
+  delay(100); // Give relay module time to settle
+  
+  relayOff(); // pastikan terkunci saat start
   
   Serial.println("[SETUP] Relay initialized - Door LOCKED");
-  Serial.print("[SETUP] GPIO2 (D4) state: ");
+  Serial.print("[SETUP] GPIO16 state: ");
   Serial.println(digitalRead(RELAY_PIN) == HIGH ? "HIGH (OFF)" : "LOW (ON)");
 
   // (opsional) kecilkan durasiBuka kalau solenoid panas
@@ -464,8 +456,16 @@ void loop() {
   // Baca keypad
   char k = scanKeypadOnce();
   if (k) {
+    #ifdef SUBSTITUSI_1_D
+      if (k == 'D') k = '1';
+    #endif
+
     if (k == '*') {                 // Clear semua
       inputUser = ""; info("Kode dihapus", 350); tampilSiap();
+    }
+    else if (k == 'A') {            // Backspace
+      if (inputUser.length() > 0) inputUser.remove(inputUser.length()-1);
+      tampilInputMasked();
     }
     else if (k == '#') {            // Cek PIN
       cekPIN();
@@ -481,6 +481,6 @@ void loop() {
       if (inputUser.length() < maxLen) inputUser += k;
       tampilInputMasked();
     }
-    // Keypad 4x3: hanya 0-9, *, # yang valid
+    // B,C,D diabaikan (kecuali SUBSTITUSI_1_D aktif)
   }
 }

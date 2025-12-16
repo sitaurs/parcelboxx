@@ -1,3 +1,12 @@
+// ===== ESP32-CAM SmartParcel - Package Detection with Gemini AI =====
+// Hardware: ESP32-CAM AI-Thinker + HC-SR04 + 2x Relay (Solenoid + Buzzer)
+// Features:
+// - Ultrasonic detection (HC-SR04)
+// - Photo capture & upload
+// - Gemini AI verification
+// - Auto holder release after photo
+// - Buzzer notification
+
 #include <WiFi.h>
 #include <WiFiManager.h> // https://github.com/tzapu/WiFiManager
 #include <PubSubClient.h>
@@ -30,6 +39,11 @@ String T_SETSET   = String("smartparcel/")+DEV_ID+"/settings/set";
 String T_SETCUR   = String("smartparcel/")+DEV_ID+"/settings/cur";
 String T_SETACK   = String("smartparcel/")+DEV_ID+"/settings/ack";
 
+// Baseline photo topics for AI comparison
+String T_BASELINE_TRIGGER = String("smartparcel/")+DEV_ID+"/baseline/trigger";
+String T_BASELINE_PHOTO   = String("smartparcel/")+DEV_ID+"/baseline/photo";
+String T_HOLDER_RELEASE   = String("smartparcel/")+DEV_ID+"/holder/release";
+
 // Backend HTTP (RAW TCP hemat RAM)
 const char* SERVER_HOST = "3.27.0.139";
 const uint16_t SERVER_PORT = 9090;
@@ -43,12 +57,12 @@ const char* API_BEARER  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6
 #define PIN_TRIG   14
 #define PIN_ECHO    2   // WAJIB divider 5V->3V3 ke pin ini
 // Relay
-#define PIN_REL1   13   // solenoid (door lock)
+#define PIN_REL1   13   // solenoid (holder release)
 #define PIN_REL2   15   // buzzer (via relay/MOSFET)
 // Flash LED
 #define PIN_FLASH   4   // LED flash kamera
 
-// Kamera pins (default)
+// Kamera pins (AI-Thinker default)
 #define PWDN_GPIO_NUM 32
 #define RESET_GPIO_NUM -1
 #define XCLK_GPIO_NUM 0
@@ -178,10 +192,6 @@ void startWiFiOnce(){
   // WiFiManager with custom portal name
   WiFiManager wm;
   
-  // UNCOMMENT BARIS INI SEKALI UNTUK RESET WIFI, LALU COMMENT LAGI
-  // wm.resetSettings();
-  // Serial.println("[WIFIMGR] WiFi settings RESET!");
-  
   // Cek apakah perlu reset WiFi (tombol BOOT ditekan saat startup)
   if (shouldResetWiFi()) {
     Serial.println("[WIFIMGR] Resetting WiFi settings...");
@@ -190,7 +200,7 @@ void startWiFiOnce(){
   }
   
   // Set custom AP name and password for config portal
-  wm.setConfigPortalTimeout(300); // 5 minutes timeout (lebih lama)
+  wm.setConfigPortalTimeout(300); // 5 minutes timeout
   wm.setConnectTimeout(30); // 30 detik timeout untuk connect ke WiFi
   
   wm.setAPCallback([](WiFiManager *myWiFiManager) {
@@ -556,6 +566,12 @@ void lockPulseMs(uint32_t ms){
     return;
   }
   relayWrite(PIN_REL1, false);
+  
+  // Publish holder release event for backend baseline capture
+  String holderEvent = String("{\"released\":true,\"ms\":") + ms + 
+    ",\"timestamp\":\"" + String(millis()) + "\"}";
+  mqtt.publish(T_HOLDER_RELEASE.c_str(), holderEvent.c_str(), false);
+  Serial.println("[HOLDER] Release event published for baseline capture");
 }
 
 // ===================== PIPELINE =====================
@@ -681,6 +697,42 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
     return;
   }
 
+  // Handle baseline trigger from backend
+  if (top == T_BASELINE_TRIGGER){
+    Serial.println("[BASELINE] Trigger received from backend");
+    ack("{\"ok\":true,\"action\":\"baseline\",\"state\":\"capturing\"}");
+    
+    // Capture baseline photo
+    flashOn(true); delay(100);
+    camera_fb_t* fb = esp_camera_fb_get();
+    flashOn(false);
+    
+    if (!fb){
+      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"baseline\",\"status\":\"failed\",\"reason\":\"no_frame\"}", false);
+      return;
+    }
+    
+    // For MQTT we send small thumbnail or trigger HTTP upload
+    // Due to MQTT size limits, we'll send metadata and trigger HTTP capture
+    String baselineEvent = String("{\"type\":\"baseline_captured\",\"bytes\":") + 
+      String((int)fb->len) + ",\"reason\":\"" + 
+      extractJsonString(s, "reason") + "\"}";
+    mqtt.publish(T_EVENT.c_str(), baselineEvent.c_str(), false);
+    
+    // Send baseline to AI endpoint via HTTP
+    UploadResult ur = httpAIVerify(fb->buf, fb->len, "baseline", lastCm, false);
+    esp_camera_fb_return(fb);
+    
+    if (ur.ok) {
+      Serial.println("[BASELINE] Uploaded successfully");
+      mqtt.publish(T_EVENT.c_str(), "{\"type\":\"baseline\",\"status\":\"success\"}", false);
+    } else {
+      Serial.printf("[BASELINE] Upload failed (HTTP %d)\n", ur.http);
+      mqtt.publish(T_EVENT.c_str(), String("{\"type\":\"baseline\",\"status\":\"error\",\"http\":"+String(ur.http)+"}").c_str(), false);
+    }
+    return;
+  }
+
   if (top == T_SETSET){
     int p;
     p = s.indexOf("\"ultra\"");
@@ -700,8 +752,8 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       if (pms>=0) S.buzzerMs = (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt();
     }
 
-    if (S.minCm<2 || S.maxCm>S.minCm+300 || S.maxCm>95 || S.minCm>=S.maxCm ||
-        S.lockMs>300000UL || S.buzzerMs>300000UL){
+    if (S.minCm<5 || S.minCm>50 || S.maxCm<10 || S.maxCm>50 || S.minCm>=S.maxCm ||
+        S.lockMs>60000UL || S.buzzerMs>300000UL){
       mqtt.publish(T_SETACK.c_str(), "{\"ok\":false,\"err\":\"bad_range\"}", false);
     } else {
       publishSettingsCur();
@@ -723,6 +775,7 @@ void ensureMQTT(){
   mqtt.publish(T_STATUS.c_str(), "online", true);
   mqtt.subscribe(T_CTRL.c_str());
   mqtt.subscribe(T_SETSET.c_str());
+  mqtt.subscribe(T_BASELINE_TRIGGER.c_str()); // Subscribe to baseline trigger from backend
 }
 
 // ===================== CAMERA =====================

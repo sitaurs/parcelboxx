@@ -51,11 +51,11 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
                             animate={{ opacity: 1, y: 0, scale: 1 }}
                             exit={{ opacity: 0, y: -20, scale: 0.9 }}
                             className={`
-                pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg border min-w-[300px] max-w-sm backdrop-blur-md
-                ${toast.type === 'success' ? 'bg-white/90 border-green-200 text-green-800' : ''}
-                ${toast.type === 'error' ? 'bg-white/90 border-red-200 text-red-800' : ''}
-                ${toast.type === 'info' ? 'bg-white/90 border-blue-200 text-blue-800' : ''}
-                ${toast.type === 'warning' ? 'bg-white/90 border-orange-200 text-orange-800' : ''}
+                pointer-events-auto flex items-center gap-3 px-4 py-3 rounded-2xl shadow-lg border min-w-[300px] max-w-sm backdrop-blur-md bg-[var(--bg-card)]/90
+                ${toast.type === 'success' ? 'border-green-200 text-green-700 dark:border-green-700 dark:text-green-400' : ''}
+                ${toast.type === 'error' ? 'border-red-200 text-red-700 dark:border-red-700 dark:text-red-400' : ''}
+                ${toast.type === 'info' ? 'border-blue-200 text-blue-700 dark:border-blue-700 dark:text-blue-400' : ''}
+                ${toast.type === 'warning' ? 'border-orange-200 text-orange-700 dark:border-orange-700 dark:text-orange-400' : ''}
               `}
                         >
                             {toast.type === 'success' && <CheckCircle className="w-5 h-5 text-green-500" />}
@@ -65,7 +65,7 @@ export const ToastProvider = ({ children }: { children: ReactNode }) => {
 
                             <p className="text-sm font-medium flex-1">{toast.message}</p>
 
-                            <button onClick={() => removeToast(toast.id)} className="p-1 hover:bg-black/5 rounded-full">
+                            <button onClick={() => removeToast(toast.id)} className="p-1 hover:bg-black/5 dark:hover:bg-white/10 rounded-full">
                                 <X className="w-4 h-4 opacity-50" />
                             </button>
                         </motion.div>

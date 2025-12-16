@@ -180,8 +180,8 @@ export default function DeviceControl() {
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-gray-900">Kunci Pintu (Solenoid Lock)</h3>
                     <div className="flex items-center gap-2">
-                        <div className={`w-2 h-2 rounded-full ${false ? 'bg-green-500' : 'bg-red-500'}`} />
-                        <span className="text-sm font-medium text-gray-700">Status: Terkunci</span>
+                        <div className={`w-2 h-2 rounded-full ${deviceStatus?.isLocked !== false ? 'bg-red-500' : 'bg-green-500'}`} />
+                        <span className="text-sm font-medium text-gray-700">Status: {deviceStatus?.isLocked !== false ? 'Terkunci' : 'Terbuka'}</span>
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">

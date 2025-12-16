@@ -18,7 +18,7 @@ export default function Layout() {
                 <Outlet />
             </main>
 
-            <nav className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-lg border-t border-gray-200 pb-safe pt-2 px-6 z-40">
+            <nav className="fixed bottom-0 left-0 right-0 bg-[var(--nav-bg)] backdrop-blur-lg border-t border-[var(--border-color)] pb-safe pt-2 px-6 z-40">
                 <div className="flex justify-between items-center max-w-md mx-auto h-16">
                     {navItems.map((item) => {
                         const isActive = location.pathname === item.path;
@@ -36,11 +36,11 @@ export default function Layout() {
                                     />
                                 )}
                                 <item.icon
-                                    className={`w-6 h-6 transition-colors duration-200 ${isActive ? 'text-brand-600' : 'text-gray-400'
+                                    className={`w-6 h-6 transition-colors duration-200 ${isActive ? 'text-brand-600' : 'text-[var(--text-secondary)]'
                                         }`}
                                 />
                                 <span
-                                    className={`text-[10px] font-medium mt-1 transition-colors duration-200 ${isActive ? 'text-brand-600' : 'text-gray-400'
+                                    className={`text-[10px] font-medium mt-1 transition-colors duration-200 ${isActive ? 'text-brand-600' : 'text-[var(--text-secondary)]'
                                         }`}
                                 >
                                     {item.label}

@@ -461,5 +461,226 @@ router.get('/alerts', requireAI, (req, res) => {
   }
 });
 
+// ==================== BASELINE MANAGEMENT ENDPOINTS ====================
+
+// POST /api/ai/baseline
+// Store baseline photo (called by ESP32 after holder release)
+router.post('/baseline', upload.single('image'), requireAI, async (req, res) => {
+  try {
+    const { deviceId, reason, distance } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No image provided',
+        message: 'Please upload an image file for baseline'
+      });
+    }
+    
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Device ID required',
+        message: 'Please provide deviceId in request body'
+      });
+    }
+    
+    console.log(`[AI-API] Baseline capture request from ${deviceId}`);
+    
+    // Capture and store baseline (with optional AI verification)
+    const result = await aiEngine.captureBaseline(deviceId, req.file.buffer, {
+      reason: reason || 'holder_release',
+      distance: distance ? parseFloat(distance) : null,
+      verifyEmpty: true  // AI will verify holder is empty
+    });
+    
+    if (result.success) {
+      return res.json({
+        success: true,
+        message: 'Baseline stored successfully',
+        baselineId: result.baselineId,
+        deviceId: deviceId,
+        timestamp: result.metadata?.timestamp
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: 'Baseline rejected',
+        message: result.error,
+        confidence: result.confidence
+      });
+    }
+    
+  } catch (error) {
+    console.error('[AI-API] Baseline capture error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to capture baseline',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/ai/baseline/:deviceId
+// Get baseline status for a device
+router.get('/baseline/:deviceId', requireAI, (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    
+    const hasBaseline = aiEngine.hasValidBaseline(deviceId);
+    const baselineStats = aiEngine.getBaselineStats();
+    
+    return res.json({
+      success: true,
+      deviceId: deviceId,
+      hasValidBaseline: hasBaseline,
+      stats: baselineStats,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[AI-API] Baseline status error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get baseline status',
+      message: error.message
+    });
+  }
+});
+
+// DELETE /api/ai/baseline/:deviceId
+// Invalidate baseline for a device (manual override or after pickup)
+router.delete('/baseline/:deviceId', requireAI, async (req, res) => {
+  try {
+    const { deviceId } = req.params;
+    
+    await aiEngine.invalidateBaseline(deviceId);
+    
+    return res.json({
+      success: true,
+      message: 'Baseline invalidated successfully',
+      deviceId: deviceId,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[AI-API] Baseline invalidate error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to invalidate baseline',
+      message: error.message
+    });
+  }
+});
+
+// POST /api/ai/compare
+// Compare realtime photo with baseline (explicit comparison request)
+router.post('/compare', upload.single('image'), requireAI, async (req, res) => {
+  try {
+    const { deviceId, distance, reason } = req.body;
+    
+    if (!req.file) {
+      return res.status(400).json({
+        success: false,
+        error: 'No image provided',
+        message: 'Please upload a realtime image to compare'
+      });
+    }
+    
+    if (!deviceId) {
+      return res.status(400).json({
+        success: false,
+        error: 'Device ID required',
+        message: 'Please provide deviceId in request body'
+      });
+    }
+    
+    // Check if baseline exists
+    if (!aiEngine.hasValidBaseline(deviceId)) {
+      return res.status(400).json({
+        success: false,
+        error: 'No valid baseline',
+        message: 'No baseline photo available for comparison. Capture baseline first.',
+        suggestion: 'POST /api/ai/baseline with empty holder photo'
+      });
+    }
+    
+    console.log(`[AI-API] Comparison request from ${deviceId}`);
+    
+    // Run detection with comparison
+    const result = await aiEngine.detectPackage(req.file.buffer, {
+      deviceId: deviceId,
+      reason: reason || 'comparison_request',
+      distance: distance ? parseFloat(distance) : null,
+      forceComparison: true  // Ensure comparison is used
+    });
+    
+    // Record metrics
+    if (metricsCollector) {
+      metricsCollector.recordDetection(result);
+    }
+    
+    return res.json({
+      success: true,
+      hasPackage: result.hasPackage,
+      confidence: result.confidence,
+      decision: result.decision,
+      description: result.description,
+      comparison: {
+        usedBaseline: result.usedBaseline || false,
+        baselineDeviceId: deviceId
+      },
+      metadata: {
+        detectionId: result.detectionId,
+        timestamp: result.timestamp,
+        responseTime: result.responseTime
+      }
+    });
+    
+  } catch (error) {
+    console.error('[AI-API] Comparison error:', error);
+    
+    if (metricsCollector) {
+      metricsCollector.recordError(error, {
+        endpoint: '/compare',
+        deviceId: req.body.deviceId
+      });
+    }
+    
+    return res.status(500).json({
+      success: false,
+      error: 'Comparison failed',
+      message: error.message
+    });
+  }
+});
+
+// GET /api/ai/baseline-stats
+// Get baseline statistics across all devices
+router.get('/baseline-stats', requireAI, (req, res) => {
+  try {
+    const stats = aiEngine.getBaselineStats();
+    
+    return res.json({
+      success: true,
+      stats: stats,
+      timestamp: new Date().toISOString()
+    });
+    
+  } catch (error) {
+    console.error('[AI-API] Baseline stats error:', error);
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to get baseline stats',
+      message: error.message
+    });
+  }
+});
+
+// Get AI Engine reference (for MQTT integration)
+function getAIEngine() {
+  return aiEngine;
+}
+
 // Export router and initialization function
-export { router as aiRoutes, initializeAI };
+export { router as aiRoutes, initializeAI, getAIEngine };

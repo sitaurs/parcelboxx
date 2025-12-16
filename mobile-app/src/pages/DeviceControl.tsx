@@ -196,7 +196,7 @@ export default function DeviceControl() {
                 lock: { ms: val }
               })}
               min={1000}
-              max={30000}
+              max={60000}
               step={500}
               help="Waktu solenoid tetap terbuka (1.000 ms = 1 detik)"
             />
@@ -234,9 +234,9 @@ export default function DeviceControl() {
                 doorLock: { ms: val }
               })}
               min={1000}
-              max={10000}
+              max={30000}
               step={500}
-              help="Kunci pintu tetap terbuka selama durasi ini"
+              help="Kunci pintu tetap terbuka selama durasi ini (maks 30 detik)"
             />
           </SectionCard>
           

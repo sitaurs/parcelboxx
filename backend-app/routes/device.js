@@ -274,7 +274,7 @@ router.post('/control/flash', authMiddleware, (req, res) => {
     } else if (state === 'off') {
       command = { flash: 'off' };
     } else if (state === 'pulse') {
-      command = { flash: 'pulse', ms: ms || 150 };
+      command = { flash: 'pulse', ms: ms || 300 }; // Default 300ms for better visibility
     } else {
       return res.status(400).json({ error: 'Invalid state' });
     }
@@ -344,7 +344,9 @@ router.post('/control/holder', authMiddleware, (req, res) => {
     } else if (action === 'closed') {
       command = { lock: 'closed' };
     } else if (action === 'pulse') {
-      command = { lock: 'pulse', ms: ms || 5000 };
+      // Cap ms to 10 seconds for safety (prevent stuck holder)
+      const safeMs = Math.min(ms || 5000, 10000);
+      command = { lock: 'pulse', ms: safeMs };
     } else {
       return res.status(400).json({ error: 'Invalid action' });
     }

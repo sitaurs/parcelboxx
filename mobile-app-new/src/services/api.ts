@@ -3,11 +3,23 @@ import { useStore } from '../store/useStore';
 // VPS URL as per user instruction
 export const API_URL = 'http://3.27.0.139:9090/api';
 
+// Configurable settings
+export const API_CONFIG = {
+    POLLING_INTERVAL: 10000, // 10 seconds, can be overridden
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 1000, // 1 second between retries
+    TIMEOUT: 30000, // 30 second timeout
+};
+
 interface RequestOptions extends RequestInit {
     headers?: Record<string, string>;
+    retries?: number;
 }
 
-const request = async (endpoint: string, options: RequestOptions = {}) => {
+// Sleep utility for retry delays
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const request = async (endpoint: string, options: RequestOptions = {}, retryCount = 0): Promise<any> => {
     const token = localStorage.getItem('authToken');
 
     const headers = {
@@ -16,11 +28,20 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
         ...options.headers,
     };
 
+    const maxRetries = options.retries ?? API_CONFIG.MAX_RETRIES;
+
     try {
+        // Add timeout support
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), API_CONFIG.TIMEOUT);
+
         const response = await fetch(`${API_URL}${endpoint}`, {
             ...options,
             headers,
+            signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         if (response.status === 401) {
             // Don't logout on 401 from device control endpoints (incorrect PIN is not session expiry)
@@ -68,6 +89,17 @@ const request = async (endpoint: string, options: RequestOptions = {}) => {
 
         return data;
     } catch (error: any) {
+        // Retry logic for network errors (not for 4xx errors)
+        const isNetworkError = error.name === 'AbortError' || 
+                               error.message === 'Failed to fetch' ||
+                               error.message.includes('network');
+        
+        if (isNetworkError && retryCount < maxRetries) {
+            console.warn(`API retry ${retryCount + 1}/${maxRetries} for ${endpoint}`);
+            await sleep(API_CONFIG.RETRY_DELAY * (retryCount + 1)); // Exponential backoff
+            return request(endpoint, options, retryCount + 1);
+        }
+        
         console.error(`API Error (${endpoint}):`, error);
         throw error;
     }

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Wifi, Lock, Signal, Package, Zap, VolumeX, Unlock } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { deviceAPI, packageAPI } from '../services/api';
+import { deviceAPI, packageAPI, API_CONFIG } from '../services/api';
 import { useToast } from '../hooks/useToast';
 import { formatDate } from '../utils/formatter';
 import Card from '../components/Card';
@@ -38,7 +38,7 @@ export default function Dashboard() {
 
     useEffect(() => {
         loadData();
-        const interval = setInterval(loadData, 10000); // Poll every 10s (reduced from 5s to avoid rate limits)
+        const interval = setInterval(loadData, API_CONFIG.POLLING_INTERVAL);
         return () => clearInterval(interval);
     }, []);
 

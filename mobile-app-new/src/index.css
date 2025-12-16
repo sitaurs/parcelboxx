@@ -5,8 +5,35 @@
 :root {
   --bg-primary: #FAFAFA;
   --bg-card: #FFFFFF;
+  --bg-secondary: #F3F4F6;
   --text-primary: #18181B;
   --text-secondary: #71717A;
+  --border-color: #E5E7EB;
+  --nav-bg: rgba(255, 255, 255, 0.8);
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg-primary: #0A0A0A;
+    --bg-card: #18181B;
+    --bg-secondary: #27272A;
+    --text-primary: #FAFAFA;
+    --text-secondary: #A1A1AA;
+    --border-color: #3F3F46;
+    --nav-bg: rgba(24, 24, 27, 0.8);
+  }
+}
+
+/* Manual dark mode class (for future toggle support) */
+.dark {
+  --bg-primary: #0A0A0A;
+  --bg-card: #18181B;
+  --bg-secondary: #27272A;
+  --text-primary: #FAFAFA;
+  --text-secondary: #A1A1AA;
+  --border-color: #3F3F46;
+  --nav-bg: rgba(24, 24, 27, 0.8);
 }
 
 body {
