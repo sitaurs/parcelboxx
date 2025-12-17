@@ -133,40 +133,80 @@ class GeminiClient {
     const basePrompt = `Analyze this image from a package delivery box holder system.
 
 CONTEXT:
-- This is a top-down view of a holder plate (penahan paket)
-- The holder plate can be in UP position (holding a package) or DOWN position (empty)
+- This is a top-down view of a holder plate (penahan paket) inside a smart parcel box
+- The holder plate is a mechanism that can move UP (horizontal, holding position) or DOWN (tilted/dropped)
+- When a package is detected, the holder plate will DROP to release the package into the box
 ${distance ? `- Ultrasonic sensor detected object at ${distance.toFixed(1)} cm` : ''}
 - Detection reason: ${reason}
 
-TASK:
-Determine if there is a REAL package or parcel on the holder plate.
+REFERENCE SCENARIOS (for your understanding):
 
-IMPORTANT RULES:
-1. Only answer TRUE if you see a clear package/box/parcel with:
-   - Defined edges and shape
-   - Visible volume (not flat)
-   - Packaging material (cardboard, plastic wrap, envelope, etc.)
+1. EMPTY HOLDER - Door CLOSED:
+   - Holder plate is slightly tilted up (not fully horizontal)
+   - Front door opening is slightly visible
+   - NO package present
+   - Example: Initial state before package delivery
+
+2. EMPTY HOLDER - Door OPEN:
+   - Holder plate is FULLY HORIZONTAL (ready to receive)
+   - Holder plate held by solenoid mechanism
+   - Front door opening is WIDE OPEN for courier access
+   - NO package present
+   - Example: Ready state for courier to place package
+
+3. PACKAGE ON HOLDER (CRITICAL - Must Detect):
+   - Holder plate is HORIZONTAL with PACKAGE on top
+   - Package can be box, envelope, or wrapped parcel
+   - Clearly visible packaging material (cardboard, plastic, bubble wrap)
+   - Defined edges and volume
+   - This is THE MOST IMPORTANT state to detect accurately
+   - Action: System will capture photo → send notification → DROP holder plate
+
+4. AFTER DROP:
+   - Holder plate is tilted DOWN (dropped position)
+   - Package has fallen into the box below
+   - Only holder mechanism visible, NO package on plate
+
+TASK:
+Determine if there is a REAL package or parcel on the holder plate RIGHT NOW.
+
+CRITICAL DETECTION RULES:
+1. Answer TRUE ONLY if you see a package/parcel with ALL of these:
+   - Defined edges and rectangular/box shape
+   - Visible 3D volume (not flat like the plate)
+   - Packaging material visible (cardboard box, plastic wrap, envelope, bubble wrap)
+   - Object is RESTING ON the horizontal holder plate
+   - Object is clearly NOT part of the holder mechanism itself
    
 2. Answer FALSE for:
-   - Empty holder plate
-   - Shadows or lighting artifacts
-   - Dust, dirt, or stains
-   - Hands or body parts (delivery person)
-   - Holder mechanism itself
+   - Empty holder plate (horizontal or tilted)
+   - Shadows or lighting artifacts/glare
+   - Dust, dirt, stains, or reflections
+   - Hands or body parts of delivery person
+   - Holder mechanism components (metal plate, springs, solenoid)
+   - Overexposed/bright areas obscuring the view
+   - Door frame or surrounding box structure
    
-3. Confidence scoring:
-   - 90-100%: Very clear package, no doubt
-   - 80-89%: Clear package, minor obstruction
-   - 70-79%: Package visible but partially obscured
-   - 60-69%: Uncertain, might be package
-   - 0-59%: No package or very unclear
+3. Confidence scoring guidelines:
+   - 90-100%: Very clear package with all features visible, zero doubt
+   - 80-89%: Clear package, minor lighting issues but package obvious
+   - 70-79%: Package visible but partially obscured or poor lighting
+   - 60-69%: Uncertain, might be package or artifact
+   - 50-59%: Very unclear, likely NOT a package
+   - 0-49%: Definitely NO package or cannot determine
 
-RESPOND WITH VALID JSON ONLY:
+4. Special cases:
+   - If image is OVEREXPOSED (too bright/glare), confidence should be LOW (0-30%)
+   - If lighting obscures critical area, mark as UNCERTAIN with low confidence
+   - Empty horizontal plate (ready state) = NO package, HIGH confidence (90-95%)
+   - Tilted/dropped plate = NO package, HIGH confidence (90-95%)
+
+RESPOND WITH VALID JSON ONLY (no markdown, no explanations outside JSON):
 {
   "hasPackage": true or false,
   "confidence": 0-100,
-  "description": "brief description of what you see",
-  "reasoning": "why you decided this way"
+  "description": "brief description of what you see (lighting, holder position, package if any)",
+  "reasoning": "detailed explanation of why you decided TRUE or FALSE based on the rules above"
 }`;
 
     return basePrompt;
