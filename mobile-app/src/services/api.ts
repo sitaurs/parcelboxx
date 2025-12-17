@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || 'http://3.27.0.139:9090/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://3.27.11.106:9090/api';
 // WhatsApp API now integrated into main backend (no separate server needed)
 const WA_API_URL = `${API_URL}/whatsapp`;
 
