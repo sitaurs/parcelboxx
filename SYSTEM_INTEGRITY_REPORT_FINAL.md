@@ -24,36 +24,36 @@ Semua komponen sistem **100% MATCHING** dan siap production:
 
 | Component | Parameter | Value | Status |
 |-----------|-----------|-------|--------|
-| **ESP32** | MQTT_HOST | `3.27.0.139` | ✅ |
+| **ESP32** | MQTT_HOST | `3.27.11.106` | ✅ |
 | **ESP32** | MQTT_PORT | `1884` | ✅ |
-| **ESP32** | SERVER_HOST | `3.27.0.139` | ✅ |
+| **ESP32** | SERVER_HOST | `3.27.11.106` | ✅ |
 | **ESP32** | SERVER_PORT | `9090` | ✅ |
-| **ESP8266** | mqtt_server | `3.27.0.139` | ✅ |
+| **ESP8266** | mqtt_server | `3.27.11.106` | ✅ |
 | **ESP8266** | mqtt_port | `1884` | ✅ |
-| **Backend** | MQTT_BROKER | `mqtt://3.27.0.139:1884` | ✅ |
+| **Backend** | MQTT_BROKER | `mqtt://3.27.11.106:1884` | ✅ |
 | **Backend** | PORT | `9090` | ✅ |
-| **Mobile App** | VITE_API_URL | `http://3.27.0.139:9090/api` | ✅ |
+| **Mobile App** | VITE_API_URL | `http://3.27.11.106:9090/api` | ✅ |
 
 **Verification:**
 ```cpp
 // ESP32 (fw/esp32/esp32.ino)
-const char* MQTT_HOST = "3.27.0.139";
+const char* MQTT_HOST = "3.27.11.106";
 const uint16_t MQTT_PORT = 1884;
-const char* SERVER_HOST = "3.27.0.139";
+const char* SERVER_HOST = "3.27.11.106";
 const uint16_t SERVER_PORT = 9090;
 
 // ESP8266 (fw/esp8266.ino)
-const char* mqtt_server = "3.27.0.139";
+const char* mqtt_server = "3.27.11.106";
 const int mqtt_port = 1884;
 
 // Backend (backend-app/mqtt/client.js)
-const brokerUrl = process.env.MQTT_BROKER || 'mqtt://3.27.0.139:1884';
+const brokerUrl = process.env.MQTT_BROKER || 'mqtt://3.27.11.106:1884';
 
 // Backend (backend-app/server.js)
 const PORT = process.env.PORT || 9090;
 
 // Mobile App (mobile-app/src/utils/url.ts)
-const apiUrl = import.meta.env.VITE_API_URL || 'http://3.27.0.139:9090/api';
+const apiUrl = import.meta.env.VITE_API_URL || 'http://3.27.11.106:9090/api';
 ```
 
 **Score:** 7/7 = **100%** ✅
@@ -355,24 +355,24 @@ upload.single('image') // Expects 'image' field
 
 | Service | Mobile App Config | Actual Backend | Status |
 |---------|-------------------|----------------|--------|
-| **Main API** | `http://3.27.0.139:9090/api` | Port 9090 | ✅ |
-| **WhatsApp API** | `http://3.27.0.139:9090/api` | Port 9090 | ✅ |
-| **Photo URL** | `http://3.27.0.139:9090{photoPath}` | `/storage` route | ✅ |
+| **Main API** | `http://3.27.11.106:9090/api` | Port 9090 | ✅ |
+| **WhatsApp API** | `http://3.27.11.106:9090/api` | Port 9090 | ✅ |
+| **Photo URL** | `http://3.27.11.106:9090{photoPath}` | `/storage` route | ✅ |
 
 **Mobile App Code:**
 ```typescript
 // mobile-app/src/services/api.ts (line 1)
-const API_URL = import.meta.env.VITE_API_URL || 'http://3.27.0.139:9090/api';
+const API_URL = import.meta.env.VITE_API_URL || 'http://3.27.11.106:9090/api';
 
 // mobile-app/src/utils/url.ts (lines 9-11)
 export const getBaseURL = (): string => {
-  const apiUrl = import.meta.env.VITE_API_URL || 'http://3.27.0.139:9090/api';
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://3.27.11.106:9090/api';
   return apiUrl;
 };
 
 // mobile-app/src/utils/url.ts (lines 28-30)
 export const getWhatsAppURL = (): string => {
-  return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
+  return import.meta.env.VITE_WA_API_URL || 'http://3.27.11.106:9090/api';
 };
 
 // mobile-app/src/utils/url.ts (lines 19-21)
@@ -539,7 +539,7 @@ const unsigned long HOLDER_SAFE_AREA_MS = 15000;
 **All systems VERIFIED and MATCHING:**
 
 1. **ESP32-CAM (box-01)**
-   - ✅ VPS IP: 3.27.0.139
+   - ✅ VPS IP: 3.27.11.106
    - ✅ MQTT connected: port 1884
    - ✅ Backend API: port 9090
    - ✅ JWT token valid until Nov 18, 2026
@@ -547,7 +547,7 @@ const unsigned long HOLDER_SAFE_AREA_MS = 15000;
    - ✅ Photo upload endpoint configured
 
 2. **ESP8266 Door Lock**
-   - ✅ VPS IP: 3.27.0.139
+   - ✅ VPS IP: 3.27.11.106
    - ✅ MQTT connected: port 1884
    - ✅ All 5 topics matching
    - ✅ PIN sync working
@@ -555,15 +555,15 @@ const unsigned long HOLDER_SAFE_AREA_MS = 15000;
 
 3. **Backend Application**
    - ✅ Port 9090 listening
-   - ✅ MQTT broker connected: 3.27.0.139:1884
+   - ✅ MQTT broker connected: 3.27.11.106:1884
    - ✅ All 14 topics subscribed
    - ✅ AI engine initialized (6 API keys)
    - ✅ Auto-retry system active
    - ✅ Device authentication working
 
 4. **Mobile App**
-   - ✅ API endpoint: http://3.27.0.139:9090/api
-   - ✅ Photo URLs: http://3.27.0.139:9090/storage/...
+   - ✅ API endpoint: http://3.27.11.106:9090/api
+   - ✅ Photo URLs: http://3.27.11.106:9090/storage/...
    - ✅ WhatsApp integration ready
 
 ---
@@ -583,9 +583,9 @@ const unsigned long HOLDER_SAFE_AREA_MS = 15000;
 
 ### ESP32 (fw/esp32/esp32.ino)
 ```cpp
-const char* MQTT_HOST = "3.27.0.139";
+const char* MQTT_HOST = "3.27.11.106";
 const uint16_t MQTT_PORT = 1884;
-const char* SERVER_HOST = "3.27.0.139";
+const char* SERVER_HOST = "3.27.11.106";
 const uint16_t SERVER_PORT = 9090;
 const char* SERVER_PATH = "/api/v1/packages";
 const char* AI_VERIFY_PATH = "/api/ai/verify-package";
@@ -593,7 +593,7 @@ const char* AI_VERIFY_PATH = "/api/ai/verify-package";
 
 ### ESP8266 (fw/esp8266.ino)
 ```cpp
-const char* mqtt_server = "3.27.0.139";
+const char* mqtt_server = "3.27.11.106";
 const int mqtt_port = 1884;
 const char* topic_control = "smartparcel/lock/control";
 const char* topic_status = "smartparcel/lock/status";
@@ -602,7 +602,7 @@ const char* topic_status = "smartparcel/lock/status";
 ### Backend (.env)
 ```bash
 PORT=9090
-MQTT_BROKER=mqtt://3.27.0.139:1884
+MQTT_BROKER=mqtt://3.27.11.106:1884
 MQTT_USER=mcuzaman
 MQTT_PASS=McuZaman#2025Aman!
 DEVICE_ID=box-01
@@ -613,8 +613,8 @@ GEMINI_API_KEY_2=AIzaSy...
 
 ### Mobile App (.env)
 ```bash
-VITE_API_URL=http://3.27.0.139:9090/api
-VITE_WA_API_URL=http://3.27.0.139:9090/api
+VITE_API_URL=http://3.27.11.106:9090/api
+VITE_WA_API_URL=http://3.27.11.106:9090/api
 ```
 
 ---

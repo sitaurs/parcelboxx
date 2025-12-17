@@ -22,7 +22,7 @@
 const char* WIFI_SSID = "ether-20-20-20-1";
 const char* WIFI_PASS = "asdasdasd";
 
-const char* MQTT_HOST = "3.27.0.139";
+const char* MQTT_HOST = "3.27.11.106";
 const uint16_t MQTT_PORT = 1883;
 const char* MQTT_USER = "mcuzaman";
 const char* MQTT_PASSW = "SimplePass123";
@@ -45,7 +45,7 @@ String T_BASELINE_PHOTO   = String("smartparcel/")+DEV_ID+"/baseline/photo";
 String T_HOLDER_RELEASE   = String("smartparcel/")+DEV_ID+"/holder/release";
 
 // Backend HTTP (RAW TCP hemat RAM)
-const char* SERVER_HOST = "3.27.0.139";
+const char* SERVER_HOST = "3.27.11.106";
 const uint16_t SERVER_PORT = 9090;
 const char* SERVER_PATH = "/api/v1/packages";
 const char* AI_VERIFY_PATH = "/api/ai/verify-package"; // AI verification endpoint

@@ -76,10 +76,10 @@ if [ ! -f ".env" ]; then
   cat << 'EOF'
 PORT=9090
 NODE_ENV=production
-BASE_URL=http://3.27.0.139:9090
+BASE_URL=http://3.27.11.106:9090
 JWT_SECRET=your-secret-key
 DEVICE_JWT_SECRET=your-device-secret
-MQTT_BROKER=mqtt://3.27.0.139:1884
+MQTT_BROKER=mqtt://3.27.11.106:1884
 MQTT_USER=mcuzaman
 MQTT_PASS=McuZaman#2025Aman!
 DEVICE_ID=box-01
@@ -154,8 +154,8 @@ echo -e "${BLUE}8️⃣  Deployment Summary${NC}"
 echo "================================"
 echo -e "${GREEN}✓ Backend: v2.1.0${NC}"
 echo -e "${GREEN}✓ Location: ${BACKEND_DIR}${NC}"
-echo -e "${GREEN}✓ API URL: http://3.27.0.139:9090${NC}"
-echo -e "${GREEN}✓ Health: http://3.27.0.139:9090/health${NC}"
+echo -e "${GREEN}✓ API URL: http://3.27.11.106:9090${NC}"
+echo -e "${GREEN}✓ Health: http://3.27.11.106:9090/health${NC}"
 echo ""
 echo "📦 New Features (v2.1.0):"
 echo "  • AI Baseline Photo Comparison"

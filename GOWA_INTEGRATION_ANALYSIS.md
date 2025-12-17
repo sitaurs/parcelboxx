@@ -206,7 +206,7 @@ const gowa = new GowaService({
 **Test 1: Package Notification**
 ```bash
 # Simulate ESP32 photo upload
-curl -X POST http://3.27.0.139:9090/api/v1/packages \
+curl -X POST http://3.27.11.106:9090/api/v1/packages \
   -H "Authorization: Bearer eyJhbGci..." \
   -F "photo=@test.jpg" \
   -F "meta={\"deviceId\":\"box-01\",\"reason\":\"detect\"}"
@@ -217,7 +217,7 @@ curl -X POST http://3.27.0.139:9090/api/v1/packages \
 **Test 2: Security Alert**
 ```bash
 # Simulate ESP8266 lockout alert via MQTT
-mosquitto_pub -h 3.27.0.139 -p 1884 \
+mosquitto_pub -h 3.27.11.106 -p 1884 \
   -u mcuzaman -P "McuZaman#2025Aman!" \
   -t "smartparcel/lock/status" \
   -m '{"method":"keypad_lockout","attempts":3,"locked":true}'
@@ -263,7 +263,7 @@ Password: SmartParcel2025!
 ### Step 3: Verify Backend Connection
 ```bash
 # Check GOWA status via backend API
-curl http://3.27.0.139:9090/api/whatsapp/status
+curl http://3.27.11.106:9090/api/whatsapp/status
 
 # Expected response:
 {
@@ -276,7 +276,7 @@ curl http://3.27.0.139:9090/api/whatsapp/status
 ### Step 4: Test Notification Manually
 ```bash
 # Test via backend API
-curl -X POST http://3.27.0.139:9090/api/whatsapp/send-test \
+curl -X POST http://3.27.11.106:9090/api/whatsapp/send-test \
   -H "Content-Type: application/json" \
   -d '{
     "recipient": "6281358959349",

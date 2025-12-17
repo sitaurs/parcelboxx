@@ -10,7 +10,7 @@
 
 ## 🔧 VPS Information
 
-**Server:** 3.27.0.139 (AWS/Cloud)
+**Server:** 3.27.11.106 (AWS/Cloud)
 **SSH Port:** 22
 **Backend Path:** `/root/smartparcel-backend`
 **Node Port:** 9090
@@ -21,7 +21,7 @@
 
 ```bash
 # 1. SSH ke VPS
-ssh root@3.27.0.139
+ssh root@3.27.11.106
 
 # 2. Clone latest code
 cd /root
@@ -79,7 +79,7 @@ systemctl restart smartparcel-backend
 cd d:\projct\cdio2\backend-app
 
 # Copy entire folder
-scp -r .\ root@3.27.0.139:/root/smartparcel-backend-v2.1.0/
+scp -r .\ root@3.27.11.106:/root/smartparcel-backend-v2.1.0/
 
 # Then SSH and:
 # - Backup old folder
@@ -115,10 +115,10 @@ backend-app/
 
 ```bash
 # 1. Health check
-curl -X GET http://3.27.0.139:9090/health
+curl -X GET http://3.27.11.106:9090/health
 
 # 2. API endpoints
-curl -X POST http://3.27.0.139:9090/api/auth/login \
+curl -X POST http://3.27.11.106:9090/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin"}'
 
@@ -126,11 +126,11 @@ curl -X POST http://3.27.0.139:9090/api/auth/login \
 # Monitor /root/smartparcel-backend/logs or pm2 logs
 
 # 4. Device status
-curl -X GET http://3.27.0.139:9090/api/device/status \
+curl -X GET http://3.27.11.106:9090/api/device/status \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 5. Check AI service
-curl -X GET http://3.27.0.139:9090/api/ai/health \
+curl -X GET http://3.27.11.106:9090/api/ai/health \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -142,14 +142,14 @@ Make sure these are set in VPS .env:
 # Backend
 PORT=9090
 NODE_ENV=production
-BASE_URL=http://3.27.0.139:9090
+BASE_URL=http://3.27.11.106:9090
 
 # JWT
 JWT_SECRET=your-secure-secret-key-here
 DEVICE_JWT_SECRET=your-device-secret-key-here
 
 # MQTT
-MQTT_BROKER=mqtt://3.27.0.139:1884
+MQTT_BROKER=mqtt://3.27.11.106:1884
 MQTT_USER=mcuzaman
 MQTT_PASS=McuZaman#2025Aman!
 
@@ -186,7 +186,7 @@ node --version  # Should be 16+
 ### MQTT connection issues
 ```bash
 # Test MQTT broker
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P "McuZaman#2025Aman!" -t test -m "hello"
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P "McuZaman#2025Aman!" -t test -m "hello"
 
 # Check broker logs
 docker logs mosquitto

@@ -100,13 +100,13 @@ SmartParcel IoT System versi original - Complete package delivery box system den
 
 ## ⚙️ Infrastructure
 
-### VPS Server (3.27.0.139)
+### VPS Server (3.27.11.106)
 - **MQTT Broker:** Mosquitto on port 1884
   - Username: `mcuzaman`
   - Password: `McuZaman#2025Aman!`
   
 - **Backend API:** Express on port 9090
-  - Base URL: `http://3.27.0.139:9090`
+  - Base URL: `http://3.27.11.106:9090`
   - Device JWT for ESP32
   
 - **GOWA WhatsApp API:** `http://gowa1.flx.web.id`

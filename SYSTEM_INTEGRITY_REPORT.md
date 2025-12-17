@@ -23,8 +23,8 @@ Comprehensive verification completed across all system components:
 
 | Component | Configuration | ESP32 | ESP8266 | Backend | Mobile | Status |
 |-----------|--------------|-------|---------|---------|--------|--------|
-| **VPS IP** | 3.27.0.139 | ✅ | ✅ | ✅ | ✅ | **MATCH** |
-| **MQTT Host** | 3.27.0.139 | ✅ | ✅ | ✅ | N/A | **MATCH** |
+| **VPS IP** | 3.27.11.106 | ✅ | ✅ | ✅ | ✅ | **MATCH** |
+| **MQTT Host** | 3.27.11.106 | ✅ | ✅ | ✅ | N/A | **MATCH** |
 | **MQTT Port** | 1884 | ✅ | ✅ | ✅ | N/A | **MATCH** |
 | **MQTT User** | mcuzaman | ✅ | ✅ | ✅ | N/A | **MATCH** |
 | **MQTT Pass** | McuZaman#2025Aman! | ✅ | ✅ | ✅ | N/A | **MATCH** |
@@ -112,14 +112,14 @@ Comprehensive verification completed across all system components:
 |----------|----------------|---------------|--------|--------|
 | Package Upload | `/api/v1/packages` | `/api/v1/packages` | POST | ✅ **MATCH** |
 | AI Verification | `/api/ai/verify-package` | `/api/ai/verify-package` | POST | ✅ **MATCH** |
-| Host | 3.27.0.139:9090 | Server listens on :9090 | - | ✅ **MATCH** |
+| Host | 3.27.11.106:9090 | Server listens on :9090 | - | ✅ **MATCH** |
 | Auth | Bearer JWT token | JWT middleware | - | ✅ **MATCH** |
 
 ### Mobile App → Backend Communication
 
 | Service | Mobile App Config | Backend Endpoint | Status |
 |---------|-------------------|------------------|--------|
-| Base API URL | `http://3.27.0.139:9090/api` | Listen on `:9090` | ✅ **MATCH** |
+| Base API URL | `http://3.27.11.106:9090/api` | Listen on `:9090` | ✅ **MATCH** |
 | Auth Login | `/api/auth/login` | `/api/auth/login` | ✅ **MATCH** |
 | Packages | `/api/packages` | `/api/packages` | ✅ **MATCH** |
 | Device Control | `/api/device/control/*` | `/api/device/control/*` | ✅ **MATCH** |
@@ -153,8 +153,8 @@ return import.meta.env.VITE_WA_API_URL || 'http://13.213.57.228:9090/api';
 **Solution Applied:**
 ```typescript
 // ✅ AFTER (CORRECT - New VPS)
-const apiUrl = import.meta.env.VITE_API_URL || 'http://3.27.0.139:9090/api';
-return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
+const apiUrl = import.meta.env.VITE_API_URL || 'http://3.27.11.106:9090/api';
+return import.meta.env.VITE_WA_API_URL || 'http://3.27.11.106:9090/api';
 ```
 
 **Files Changed:** 1  
@@ -214,11 +214,11 @@ return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
 **Configuration Status:** ✅ **ALL CORRECT**
 
 ```cpp
-✅ MQTT_HOST = "3.27.0.139"
+✅ MQTT_HOST = "3.27.11.106"
 ✅ MQTT_PORT = 1884
 ✅ MQTT_USER = "mcuzaman"
 ✅ MQTT_PASSW = "McuZaman#2025Aman!"
-✅ SERVER_HOST = "3.27.0.139"
+✅ SERVER_HOST = "3.27.11.106"
 ✅ SERVER_PORT = 9090
 ✅ SERVER_PATH = "/api/v1/packages"
 ✅ AI_VERIFY_PATH = "/api/ai/verify-package"
@@ -244,7 +244,7 @@ return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
 **Configuration Status:** ✅ **ALL CORRECT**
 
 ```cpp
-✅ mqtt_server = "3.27.0.139"
+✅ mqtt_server = "3.27.11.106"
 ✅ mqtt_port = 1884
 ✅ mqtt_user = "mcuzaman"
 ✅ mqtt_pass = "McuZaman#2025Aman!"
@@ -281,7 +281,7 @@ return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
 
 #### MQTT Client (mqtt/client.js)
 ```javascript
-✅ MQTT_BROKER = "mqtt://3.27.0.139:1884"
+✅ MQTT_BROKER = "mqtt://3.27.11.106:1884"
 ✅ MQTT_USER = "mcuzaman"
 ✅ MQTT_PASS = "McuZaman#2025Aman!"
 ✅ Subscribes to 14 topics (9 ESP32 + 5 ESP8266)
@@ -324,7 +324,7 @@ return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
 
 #### API Service (src/services/api.ts)
 ```typescript
-✅ API_URL = 'http://3.27.0.139:9090/api'
+✅ API_URL = 'http://3.27.11.106:9090/api'
 ✅ WA_API_URL = `${API_URL}/whatsapp`
 ✅ All auth endpoints match backend
 ✅ All package endpoints match backend
@@ -334,12 +334,12 @@ return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
 
 #### URL Utilities (src/utils/url.ts)
 ```typescript
-✅ getBaseURL() = 'http://3.27.0.139:9090' (FIXED)
-✅ getWhatsAppURL() = 'http://3.27.0.139:9090/api' (FIXED)
+✅ getBaseURL() = 'http://3.27.11.106:9090' (FIXED)
+✅ getWhatsAppURL() = 'http://3.27.11.106:9090/api' (FIXED)
 ✅ getPhotoURL() - Constructs full photo URLs correctly
 ```
 
-**Fix Applied:** Changed fallback URLs from 13.213.57.228 → 3.27.0.139
+**Fix Applied:** Changed fallback URLs from 13.213.57.228 → 3.27.11.106
 
 ---
 
@@ -348,7 +348,7 @@ return import.meta.env.VITE_WA_API_URL || 'http://3.27.0.139:9090/api';
 **Configuration Status:** ✅ **CORRECT**
 
 ```typescript
-✅ API_URL = 'http://3.27.0.139:9090/api'
+✅ API_URL = 'http://3.27.11.106:9090/api'
 ```
 
 No issues found - already using correct VPS IP.
@@ -427,11 +427,11 @@ npm start
 - Verify 14 topic subscriptions
 
 # Test AI endpoints
-curl http://3.27.0.139:9090/api/ai/health
-curl http://3.27.0.139:9090/api/ai/stats
+curl http://3.27.11.106:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/stats
 
 # Test GOWA connection
-curl http://3.27.0.139:9090/api/whatsapp/status \
+curl http://3.27.11.106:9090/api/whatsapp/status \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -448,7 +448,7 @@ adb install android/app/build/outputs/apk/release/app-release.apk
 
 # Test photo viewing
 - Check package gallery
-- Verify photos load from http://3.27.0.139:9090/storage/
+- Verify photos load from http://3.27.11.106:9090/storage/
 - Test zoom and share
 
 # Test device control
@@ -581,7 +581,7 @@ adb install android/app/build/outputs/apk/release/app-release.apk
 For issues or questions:
 - Check backend logs: `pm2 logs smartparcel`
 - Check MQTT logs: `sudo journalctl -u mosquitto -f`
-- Review AI metrics: `http://3.27.0.139:9090/api/ai/dashboard`
+- Review AI metrics: `http://3.27.11.106:9090/api/ai/dashboard`
 - GitHub Issues: https://github.com/sitaurs/parcelboxx/issues
 
 ---

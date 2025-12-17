@@ -5,7 +5,7 @@ Modern React + TypeScript mobile app for SmartParcel IoT system.
 ## ✅ Status: Connected to VPS Backend
 
 ```
-Backend: http://3.27.0.139:9090
+Backend: http://3.27.11.106:9090
 Status:  ✅ Online & Verified
 MQTT:    ✅ Connected (16 topics)
 AI:      ✅ Ready (9 Gemini keys)
@@ -100,7 +100,7 @@ src/
 Backend API configured in `src/services/api.ts`:
 
 ```typescript
-export const API_URL = 'http://3.27.0.139:9090/api';
+export const API_URL = 'http://3.27.11.106:9090/api';
 ```
 
 ### Available Endpoints
@@ -141,7 +141,7 @@ node test-backend-connection.js
 
 Manual API test:
 ```bash
-curl http://3.27.0.139:9090/health
+curl http://3.27.11.106:9090/health
 ```
 
 ---
@@ -149,7 +149,7 @@ curl http://3.27.0.139:9090/health
 ## 🚨 Troubleshooting
 
 **Can't connect to backend?**
-1. Check backend health: `curl http://3.27.0.139:9090/health`
+1. Check backend health: `curl http://3.27.11.106:9090/health`
 2. Verify VPS is running
 3. Check PM2 logs: `pm2 logs smartparcel-backend`
 

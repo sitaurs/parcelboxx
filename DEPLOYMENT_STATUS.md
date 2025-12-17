@@ -8,7 +8,7 @@
 
 ## 📊 Deployment Overview
 
-### ✅ Backend (VPS 3.27.0.139)
+### ✅ Backend (VPS 3.27.11.106)
 - **Location**: `/home/ubuntu/smartparcel-backend/backend-app`
 - **Port**: 9090
 - **Status**: ✅ Online & Running
@@ -16,11 +16,11 @@
 - **MQTT**: ✅ Connected (localhost:1883)
 - **AI Engine**: ✅ Ready (9 Gemini API keys)
 - **Database**: ✅ Initialized (7 JSON files)
-- **Health**: ✅ OK (`http://3.27.0.139:9090/health`)
+- **Health**: ✅ OK (`http://3.27.11.106:9090/health`)
 
 ### ✅ Mobile App (mobile-app-new)
 - **Framework**: React 19 + TypeScript + Vite
-- **API URL**: `http://3.27.0.139:9090/api`
+- **API URL**: `http://3.27.11.106:9090/api`
 - **Status**: ✅ Connected & Verified
 - **Tests**: ✅ All endpoints working
 - **Documentation**: ✅ Complete (BACKEND_CONNECTION.md, README.md)
@@ -30,8 +30,8 @@
 - **File**: `esp32.ino`
 - **Version**: 2.1.1
 - **Status**: ✅ Compilation fixed
-- **MQTT Broker**: 3.27.0.139:1883
-- **HTTP API**: 3.27.0.139:9090
+- **MQTT Broker**: 3.27.11.106:1883
+- **HTTP API**: 3.27.11.106:9090
 - **Documentation**: ✅ ESP32_FIRMWARE_GUIDE.md
 - **Issues Fixed**: 
   - ✅ mqtt.publish() StringSumHelper error
@@ -41,7 +41,7 @@
 ### ⏳ ESP8266 Lock Firmware (fw/esp8266.ino)
 - **Status**: ⚠️ Not verified yet
 - **Expected Config**:
-  - MQTT Broker: 3.27.0.139:1883
+  - MQTT Broker: 3.27.11.106:1883
   - MQTT User: mcuzaman
   - MQTT Pass: SimplePass123
   - Topics: `smartparcel/lock/*`
@@ -52,15 +52,15 @@
 
 ### Backend VPS
 ```
-IP:       3.27.0.139
-SSH:      ubuntu@3.27.0.139
+IP:       3.27.11.106
+SSH:      ubuntu@3.27.11.106
 Port:     9090 (HTTP API)
 MQTT:     1883 (Mosquitto)
 ```
 
 ### MQTT Broker
 ```
-Host:     3.27.0.139
+Host:     3.27.11.106
 Port:     1883
 User:     mcuzaman
 Password: SimplePass123
@@ -88,7 +88,7 @@ ESP8266:  Device ID: lock-01 (to be confirmed)
 ```
 ┌─────────────┐      HTTP API       ┌──────────────┐
 │  Mobile App │◄───────────────────►│  Backend VPS │
-└─────────────┘   (3.27.0.139:9090) └──────────────┘
+└─────────────┘   (3.27.11.106:9090) └──────────────┘
                                             │
                                             │ MQTT
                                             ▼
@@ -156,7 +156,7 @@ smartparcel/
 - [ ] GOWA WhatsApp credentials configured
 
 ### Mobile App
-- [x] API URL configured (3.27.0.139:9090)
+- [x] API URL configured (3.27.11.106:9090)
 - [x] No localhost references
 - [x] Connection verified
 - [x] Documentation created
@@ -302,7 +302,7 @@ smartparcel/
 ### Backend Issues
 ```bash
 # Check backend status
-ssh ubuntu@3.27.0.139
+ssh ubuntu@3.27.11.106
 pm2 status
 pm2 logs smartparcel-backend
 
@@ -310,7 +310,7 @@ pm2 logs smartparcel-backend
 pm2 restart smartparcel-backend --update-env
 
 # Check health
-curl http://3.27.0.139:9090/health
+curl http://3.27.11.106:9090/health
 ```
 
 ### Mobile App Issues
@@ -339,7 +339,7 @@ mosquitto_pub -h localhost -p 1883 -u mcuzaman -P SimplePass123 -t test -m "hell
 mosquitto_sub -h localhost -p 1883 -u mcuzaman -P SimplePass123 -t '#' -v
 
 # Test MQTT from external
-mosquitto_pub -h 3.27.0.139 -p 1883 -u mcuzaman -P SimplePass123 -t test -m "hello"
+mosquitto_pub -h 3.27.11.106 -p 1883 -u mcuzaman -P SimplePass123 -t test -m "hello"
 ```
 
 ---

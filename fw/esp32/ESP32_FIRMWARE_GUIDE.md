@@ -2,8 +2,8 @@
 
 ## ✅ Status: Ready to Flash
 
-**Backend VPS**: `3.27.0.139:9090`  
-**MQTT Broker**: `3.27.0.139:1883`  
+**Backend VPS**: `3.27.11.106:9090`  
+**MQTT Broker**: `3.27.11.106:1883`  
 **Last Updated**: December 16, 2025
 
 ---
@@ -32,13 +32,13 @@ const char* WIFI_SSID = "ether-20-20-20-1";  // Fallback
 const char* WIFI_PASS = "asdasdasd";          // Fallback
 
 // MQTT Broker
-const char* MQTT_HOST = "3.27.0.139";
+const char* MQTT_HOST = "3.27.11.106";
 const uint16_t MQTT_PORT = 1883;              // ✅ Fixed
 const char* MQTT_USER = "mcuzaman";
 const char* MQTT_PASSW = "SimplePass123";     // ✅ Updated
 
 // HTTP API
-const char* SERVER_HOST = "3.27.0.139";
+const char* SERVER_HOST = "3.27.11.106";
 const uint16_t SERVER_PORT = 9090;
 const char* SERVER_PATH = "/api/v1/packages";
 const char* AI_VERIFY_PATH = "/api/ai/verify-package";
@@ -255,10 +255,10 @@ Send to topic: `smartparcel/box-01/settings/set`
 ```
 
 If stuck at "Connecting...":
-- Verify broker IP: `3.27.0.139`
+- Verify broker IP: `3.27.11.106`
 - Verify port: `1883` (not 1884!)
 - Check credentials: `mcuzaman` / `SimplePass123`
-- Test manually: `mosquitto_pub -h 3.27.0.139 -p 1883 -u mcuzaman -P SimplePass123 -t test -m hi`
+- Test manually: `mosquitto_pub -h 3.27.11.106 -p 1883 -u mcuzaman -P SimplePass123 -t test -m hi`
 
 ### Camera Init Failed
 ```
@@ -275,7 +275,7 @@ If stuck at "Connecting...":
 [PHOTO] Upload failed attempt 1 (HTTP 401)
 ```
 **Check**:
-- Backend running: `curl http://3.27.0.139:9090/health`
+- Backend running: `curl http://3.27.11.106:9090/health`
 - JWT token valid (expires Nov 2026)
 - Network connectivity
 

@@ -243,13 +243,13 @@ npm start
 
 ```bash
 # Status check
-curl http://3.27.0.139:9090/api/ai/status
+curl http://3.27.11.106:9090/api/ai/status
 
 # Health check
-curl http://3.27.0.139:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/health
 
 # MQTT monitor
-mosquitto_sub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'password' \
+mosquitto_sub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'password' \
   -t smartparcel/box-01/event
 ```
 

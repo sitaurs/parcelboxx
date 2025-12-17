@@ -2,7 +2,7 @@
 
 ## ✅ Status: Fully Connected
 
-**Backend URL**: `http://3.27.0.139:9090/api`  
+**Backend URL**: `http://3.27.11.106:9090/api`  
 **Last Verified**: December 16, 2025
 
 ---
@@ -11,7 +11,7 @@
 
 ### API Configuration (`src/services/api.ts`)
 ```typescript
-export const API_URL = 'http://3.27.0.139:9090/api';
+export const API_URL = 'http://3.27.11.106:9090/api';
 ```
 
 ✅ Pointing to production VPS backend  
@@ -25,7 +25,7 @@ export const API_URL = 'http://3.27.0.139:9090/api';
 ### Quick Test (PowerShell)
 ```powershell
 # Test backend health
-curl http://3.27.0.139:9090/health
+curl http://3.27.11.106:9090/health
 
 # Expected response:
 # {"status":"ok","service":"SmartParcel Backend App","timestamp":"..."}
@@ -128,11 +128,11 @@ npm run preview
 ### Cannot Connect to Backend
 ```powershell
 # Test VPS connectivity
-curl http://3.27.0.139:9090/health
+curl http://3.27.11.106:9090/health
 ```
 
 If fails:
-1. Check VPS is running: `ssh ubuntu@3.27.0.139`
+1. Check VPS is running: `ssh ubuntu@3.27.11.106`
 2. Check PM2 status: `pm2 status`
 3. Check backend logs: `pm2 logs smartparcel-backend`
 
@@ -150,7 +150,7 @@ If fails:
 
 ## Production Deployment Checklist
 
-- [x] Backend deployed to VPS (3.27.0.139:9090)
+- [x] Backend deployed to VPS (3.27.11.106:9090)
 - [x] Mobile app API_URL configured
 - [x] MQTT broker connected
 - [x] AI engine initialized (9 API keys)

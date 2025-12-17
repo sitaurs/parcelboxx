@@ -19,7 +19,7 @@ set "RESET=[0m"
 
 REM Configuration
 set VPS_USER=root
-set VPS_HOST=3.27.0.139
+set VPS_HOST=3.27.11.106
 set VPS_PATH=/root/smartparcel-backend/backend-app
 set BACKEND_LOCAL=d:\projct\cdio2\backend-app
 

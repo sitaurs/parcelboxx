@@ -2,10 +2,10 @@
 
 /**
  * Backend Connection Test Script
- * Tests connectivity to deployed backend at 3.27.0.139:9090
+ * Tests connectivity to deployed backend at 3.27.11.106:9090
  */
 
-const API_URL = 'http://3.27.0.139:9090/api';
+const API_URL = 'http://3.27.11.106:9090/api';
 
 async function testEndpoint(name, endpoint, options = {}) {
     try {
@@ -34,7 +34,7 @@ async function testEndpoint(name, endpoint, options = {}) {
 async function runTests() {
     console.log('═══════════════════════════════════════════════════════');
     console.log('  SmartParcel Backend Connection Test');
-    console.log('  Backend: http://3.27.0.139:9090');
+    console.log('  Backend: http://3.27.11.106:9090');
     console.log('═══════════════════════════════════════════════════════\n');
 
     // Test 1: Health Check

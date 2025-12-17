@@ -136,13 +136,13 @@ Arduino IDE → Open esp32.ino → Upload
 ### 3. Test AI Detection
 ```bash
 # Check status
-curl http://3.27.0.139:9090/api/ai/status
+curl http://3.27.11.106:9090/api/ai/status
 
 # Check health
-curl http://3.27.0.139:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/health
 
 # Monitor MQTT
-mosquitto_sub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
+mosquitto_sub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
   -t smartparcel/box-01/event
 ```
 
@@ -223,7 +223,7 @@ Place package → Watch serial monitor:
 
 ### Dashboard
 ```bash
-curl http://3.27.0.139:9090/api/ai/dashboard
+curl http://3.27.11.106:9090/api/ai/dashboard
 ```
 
 **Returns:**
@@ -274,7 +274,7 @@ curl http://3.27.0.139:9090/api/ai/dashboard
 **Cause:** WiFi disconnected or wrong backend URL  
 **Fix:**
 - Check WiFi connection
-- Verify `SERVER_HOST = "3.27.0.139"`
+- Verify `SERVER_HOST = "3.27.11.106"`
 - Check `AI_VERIFY_PATH = "/api/ai/verify-package"`
 
 ### High response times (>5s)

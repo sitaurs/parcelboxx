@@ -18,7 +18,7 @@
 // Default fallback (optional - will use saved credentials first)
 const char* ssid = "ether-20-20-20-1";
 const char* password = "asdasdasd";
-const char* mqtt_server = "3.27.0.139";  // MQTT Broker
+const char* mqtt_server = "3.27.11.106";  // MQTT Broker
 const int mqtt_port = 1884;
 const char* mqtt_user = "mcuzaman";  // MQTT authentication
 const char* mqtt_pass = "McuZaman#2025Aman!";  // MQTT authentication

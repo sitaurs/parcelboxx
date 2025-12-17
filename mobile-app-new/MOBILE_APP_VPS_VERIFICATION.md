@@ -9,7 +9,7 @@
 ## 🎯 Connection Status
 
 ### Backend VPS
-- **URL**: `http://3.27.0.139:9090`
+- **URL**: `http://3.27.11.106:9090`
 - **Status**: ✅ **Online**
 - **Health**: ✅ **OK**
 - **MQTT**: ✅ **Connected** (16 topics)
@@ -17,7 +17,7 @@
 - **PM2**: ✅ **Running** (auto-restart enabled)
 
 ### Mobile App Configuration
-- **API URL**: `http://3.27.0.139:9090/api` ✅
+- **API URL**: `http://3.27.11.106:9090/api` ✅
 - **Source**: `mobile-app-new/src/services/api.ts`
 - **Hardcoded Localhost**: ❌ None found
 - **Environment Variables**: Not needed (direct config)
@@ -28,7 +28,7 @@
 
 ### 1. Health Check
 ```bash
-curl http://3.27.0.139:9090/health
+curl http://3.27.11.106:9090/health
 ```
 **Result**: ✅ `{"status":"ok","service":"SmartParcel Backend App"}`
 
@@ -48,7 +48,7 @@ node test-backend-connection.js
 **Grep Search Results**:
 ```
 ✅ API_URL found in: src/services/api.ts (line 4)
-✅ Value: 'http://3.27.0.139:9090/api'
+✅ Value: 'http://3.27.11.106:9090/api'
 ❌ No localhost references found
 ❌ No hardcoded IPs except VPS IP
 ```
@@ -185,7 +185,7 @@ npm run preview
 ### Mobile App
 **File**: `mobile-app-new/src/services/api.ts`
 ```typescript
-export const API_URL = 'http://3.27.0.139:9090/api';
+export const API_URL = 'http://3.27.11.106:9090/api';
 
 export const API_CONFIG = {
     POLLING_INTERVAL: 10000,  // 10 seconds
@@ -221,7 +221,7 @@ JWT_REFRESH_SECRET=***
 
 | Component | Status | Details |
 |-----------|--------|---------|
-| Backend VPS | ✅ Online | 3.27.0.139:9090 |
+| Backend VPS | ✅ Online | 3.27.11.106:9090 |
 | MQTT Connection | ✅ Connected | 16 topics subscribed |
 | AI Engine | ✅ Ready | 9 Gemini keys active |
 | Database | ✅ Initialized | 7 JSON files |
@@ -250,7 +250,7 @@ JWT_REFRESH_SECRET=***
 
 ## ✅ FINAL CONCLUSION
 
-**Mobile App (`mobile-app-new`) is FULLY CONNECTED to deployed VPS backend at `3.27.0.139:9090`**
+**Mobile App (`mobile-app-new`) is FULLY CONNECTED to deployed VPS backend at `3.27.11.106:9090`**
 
 ✅ All API endpoints verified and working  
 ✅ No localhost references in code  

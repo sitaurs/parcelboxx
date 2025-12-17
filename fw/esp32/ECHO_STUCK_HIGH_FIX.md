@@ -245,13 +245,13 @@ Vout = 5V × 1kΩ / (2kΩ + 1kΩ)
 **Temporary Workaround:**
 ```bash
 # Disable AI periodic check via MQTT
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"aiCheck": {"disable": true}}'
 
 # Manual capture only when needed
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"capture": true}'

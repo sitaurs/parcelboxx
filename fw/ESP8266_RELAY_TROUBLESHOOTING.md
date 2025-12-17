@@ -145,7 +145,7 @@ WiFi Setup...
 WiFi Connected!
 [SETUP] WiFi connected
 [SETUP] IP: 192.168.1.100
-[SETUP] MQTT: 3.27.0.139:1884
+[SETUP] MQTT: 3.27.11.106:1884
 [SETUP] Keypad ready
 [RELAY] OFF - Door LOCKED              ← HARUS ADA INI
 [SETUP] Relay initialized - Door LOCKED

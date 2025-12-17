@@ -17,7 +17,7 @@ npm start
 ### Step 2: Test AI Service (30 seconds)
 ```powershell
 # Open new terminal
-curl http://3.27.0.139:9090/api/ai/status
+curl http://3.27.11.106:9090/api/ai/status
 ```
 
 **Expected:**
@@ -31,7 +31,7 @@ curl http://3.27.0.139:9090/api/ai/status
 
 ### Step 3: Check Health (30 seconds)
 ```powershell
-curl http://3.27.0.139:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/health
 ```
 
 **Verify:** All 9 keys showing `"status": "healthy"`
@@ -71,7 +71,7 @@ Place package on holder → Watch serial monitor:
 
 ### Test 2: Dashboard Access
 ```powershell
-curl http://3.27.0.139:9090/api/ai/dashboard
+curl http://3.27.11.106:9090/api/ai/dashboard
 ```
 
 ✅ **Success:** Returns dashboard data with stats
@@ -79,7 +79,7 @@ curl http://3.27.0.139:9090/api/ai/dashboard
 ### Test 3: MQTT Control
 ```powershell
 # Trigger immediate AI check
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"now"}'
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"now"}'
 ```
 
 ✅ **Success:** ESP32 performs immediate check
@@ -90,7 +90,7 @@ mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smart
 
 ### MQTT Events
 ```powershell
-mosquitto_sub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/event
+mosquitto_sub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/event
 ```
 
 **You'll see:**
@@ -117,22 +117,22 @@ Watch terminal where backend is running:
 
 ### Disable AI (use only ultrasonic)
 ```powershell
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"disable"}'
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"disable"}'
 ```
 
 ### Enable AI again
 ```powershell
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"enable"}'
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"enable"}'
 ```
 
 ### Force immediate check
 ```powershell
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"now"}'
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' -t smartparcel/box-01/control -m '{"aiCheck":"now"}'
 ```
 
 ### Adjust intervals
 ```powershell
-curl -X PUT http://3.27.0.139:9090/api/ai/settings -H "Content-Type: application/json" -d '{
+curl -X PUT http://3.27.11.106:9090/api/ai/settings -H "Content-Type: application/json" -d '{
   "intervals": {
     "IDLE": 60,
     "ACTIVE": 10,
@@ -157,7 +157,7 @@ notepad .env
 **Fix:** Check WiFi connection and backend URL
 ```cpp
 // In esp32.ino, verify:
-const char* SERVER_HOST = "3.27.0.139";
+const char* SERVER_HOST = "3.27.11.106";
 const uint16_t SERVER_PORT = 9090;
 ```
 
@@ -165,14 +165,14 @@ const uint16_t SERVER_PORT = 9090;
 **Fix:** All keys rate limited, wait 60 seconds
 ```powershell
 # Check key health
-curl http://3.27.0.139:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/health
 ```
 
 ### ❌ Low confidence results
 **Fix:** Check camera focus and lighting
 ```powershell
 # Adjust confidence threshold
-curl -X PUT http://3.27.0.139:9090/api/ai/settings -d '{"detection":{"acceptThreshold":60}}'
+curl -X PUT http://3.27.11.106:9090/api/ai/settings -d '{"detection":{"acceptThreshold":60}}'
 ```
 
 ---

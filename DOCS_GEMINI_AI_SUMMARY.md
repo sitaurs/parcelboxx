@@ -305,13 +305,13 @@ npm start
 ### 3. Initial Testing
 ```bash
 # Test AI status
-curl http://3.27.0.139:9090/api/ai/status
+curl http://3.27.11.106:9090/api/ai/status
 
 # Test health
-curl http://3.27.0.139:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/health
 
 # Monitor MQTT events
-mosquitto_sub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
+mosquitto_sub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
   -t smartparcel/box-01/event
 ```
 

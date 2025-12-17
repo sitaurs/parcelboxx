@@ -55,7 +55,7 @@ export function initMQTT(options = {}) {
     console.log('[MQTT] AI Engine linked for baseline capture');
   }
   
-  const brokerUrl = process.env.MQTT_BROKER || 'mqtt://3.27.0.139:1884';
+  const brokerUrl = process.env.MQTT_BROKER || 'mqtt://3.27.11.106:1884';
   const mqttOptions = {
     username: process.env.MQTT_USER || 'mcuzaman',
     password: process.env.MQTT_PASS || 'McuZaman#2025Aman!',

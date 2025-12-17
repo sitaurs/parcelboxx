@@ -50,7 +50,7 @@
 ✅ **Test via MQTT:**
 ```bash
 # Send diagnostic command
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"diagnostic": true}'
@@ -137,7 +137,7 @@ If TRIG doesn't pulse:
 ✅ **Test via MQTT:**
 ```bash
 # Run diagnostic
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"diagnostic": true}'
@@ -191,7 +191,7 @@ mosquitto_pub -h 3.27.0.139 -p 1883 \
 
 ✅ **Check MQTT Credentials:**
 ```cpp
-const char* MQTT_HOST = "3.27.0.139";
+const char* MQTT_HOST = "3.27.11.106";
 const uint16_t MQTT_PORT = 1883;  // NOT 1884!
 const char* MQTT_USER = "mcuzaman";
 const char* MQTT_PASSW = "SimplePass123";
@@ -200,7 +200,7 @@ const char* MQTT_PASSW = "SimplePass123";
 ✅ **Test MQTT Broker:**
 ```bash
 # From VPS or PC
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t test -m "hello"
 
@@ -228,7 +228,7 @@ sudo ufw status
 
 ✅ **Check Backend:**
 ```bash
-curl http://3.27.0.139:9090/health
+curl http://3.27.11.106:9090/health
 # Should return: {"status":"ok"...}
 ```
 
@@ -241,7 +241,7 @@ const char* API_BEARER = "eyJhbGci...";
 ✅ **Check Network:**
 ```
 - ESP32 can ping gateway
-- Gateway can route to 3.27.0.139
+- Gateway can route to 3.27.11.106
 - No firewall blocking port 9090
 ```
 
@@ -251,7 +251,7 @@ const char* API_BEARER = "eyJhbGci...";
 
 ### Run Full Diagnostic
 ```bash
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"diagnostic": true}'
@@ -273,7 +273,7 @@ mosquitto_pub -h 3.27.0.139 -p 1883 \
 
 ### Manual Photo Capture
 ```bash
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"capture": true}'
@@ -282,13 +282,13 @@ mosquitto_pub -h 3.27.0.139 -p 1883 \
 ### Flash LED Test
 ```bash
 # Turn on
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"flash": {"on": true}}'
 
 # Turn off
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"flash": {"off": true}}'
@@ -296,7 +296,7 @@ mosquitto_pub -h 3.27.0.139 -p 1883 \
 
 ### Buzzer Test
 ```bash
-mosquitto_pub -h 3.27.0.139 -p 1883 \
+mosquitto_pub -h 3.27.11.106 -p 1883 \
   -u mcuzaman -P SimplePass123 \
   -t smartparcel/box-01/control \
   -m '{"buzzer": {"pulse": true, "ms": 2000}}'
@@ -401,7 +401,7 @@ mosquitto_pub -h 3.27.0.139 -p 1883 \
 - [ ] Password correct
 
 ### MQTT
-- [ ] Broker IP: **3.27.0.139**
+- [ ] Broker IP: **3.27.11.106**
 - [ ] Port: **1883** (NOT 1884)
 - [ ] User: **mcuzaman**
 - [ ] Password: **SimplePass123**
@@ -416,7 +416,7 @@ mosquitto_pub -h 3.27.0.139 -p 1883 \
 | HC-SR04 NaN | Check **voltage divider** (2kΩ + 1kΩ) |
 | WiFi failed | Reset with **GPIO 0 button** during boot |
 | MQTT failed | Verify port **1883**, password **SimplePass123** |
-| Upload failed | Check backend: `curl http://3.27.0.139:9090/health` |
+| Upload failed | Check backend: `curl http://3.27.11.106:9090/health` |
 
 ---
 

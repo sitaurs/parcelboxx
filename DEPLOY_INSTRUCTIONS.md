@@ -33,7 +33,7 @@ chmod 600 ~/.ssh/authorized_keys
 
 **Linux/VPS:**
 ```bash
-ssh root@3.27.0.139 "bash -s" < backend-app/deploy.sh
+ssh root@3.27.11.106 "bash -s" < backend-app/deploy.sh
 ```
 
 **Windows:**
@@ -48,7 +48,7 @@ cd backend-app
 
 ```bash
 # SSH ke VPS
-ssh root@3.27.0.139
+ssh root@3.27.11.106
 
 # Pull latest code
 cd /root/smartparcel-backend/backend-app
@@ -69,7 +69,7 @@ systemctl restart smartparcel-backend
 
 ```bash
 # 1. SSH ke VPS
-ssh root@3.27.0.139
+ssh root@3.27.11.106
 
 # 2. Clone or update repo
 cd /root
@@ -101,10 +101,10 @@ Setelah deploy, cek:
 
 ```bash
 # 1. API Health
-curl http://3.27.0.139:9090/health
+curl http://3.27.11.106:9090/health
 
 # 2. Login endpoint
-curl -X POST http://3.27.0.139:9090/api/auth/login \
+curl -X POST http://3.27.11.106:9090/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{"username":"admin","password":"admin"}'
 
@@ -113,11 +113,11 @@ pm2 logs smartparcel-backend | grep -i mqtt
 
 # 4. Device status
 # Gunakan token dari login untuk cek:
-curl http://3.27.0.139:9090/api/device/status \
+curl http://3.27.11.106:9090/api/device/status \
   -H "Authorization: Bearer YOUR_TOKEN"
 
 # 5. AI service
-curl http://3.27.0.139:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/health
 ```
 
 ---
@@ -135,10 +135,10 @@ curl http://3.27.0.139:9090/api/ai/health
 ```env
 PORT=9090
 NODE_ENV=production
-BASE_URL=http://3.27.0.139:9090
+BASE_URL=http://3.27.11.106:9090
 JWT_SECRET=your-secret
 DEVICE_JWT_SECRET=your-device-secret
-MQTT_BROKER=mqtt://3.27.0.139:1884
+MQTT_BROKER=mqtt://3.27.11.106:1884
 MQTT_USER=mcuzaman
 MQTT_PASS=McuZaman#2025Aman!
 DEVICE_ID=box-01
@@ -189,7 +189,7 @@ node --version  # harus 16+
 ### MQTT tidak connect:
 ```bash
 # Test MQTT
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P "McuZaman#2025Aman!" -t test -m "hello"
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P "McuZaman#2025Aman!" -t test -m "hello"
 
 # Check mosquitto
 systemctl status mosquitto

@@ -94,7 +94,7 @@ npm start
 
 #### Test 2.1: Status Check
 ```bash
-curl http://3.27.0.139:9090/api/ai/status
+curl http://3.27.11.106:9090/api/ai/status
 ```
 
 **Expected Response:**
@@ -109,7 +109,7 @@ curl http://3.27.0.139:9090/api/ai/status
 
 #### Test 2.2: Health Report
 ```bash
-curl http://3.27.0.139:9090/api/ai/health
+curl http://3.27.11.106:9090/api/ai/health
 ```
 
 **Expected Response:**
@@ -136,7 +136,7 @@ curl http://3.27.0.139:9090/api/ai/health
 
 #### Test 2.3: Settings
 ```bash
-curl http://3.27.0.139:9090/api/ai/settings
+curl http://3.27.11.106:9090/api/ai/settings
 ```
 
 **Expected Response:**
@@ -163,7 +163,7 @@ curl http://3.27.0.139:9090/api/ai/settings
 
 **Test with sample image:**
 ```bash
-curl -X POST http://3.27.0.139:9090/api/ai/verify-package \
+curl -X POST http://3.27.11.106:9090/api/ai/verify-package \
   -H "Authorization: Bearer YOUR_DEVICE_TOKEN" \
   -F "image=@test-package.jpg" \
   -F "deviceId=box-01" \
@@ -229,24 +229,24 @@ curl -X POST http://3.27.0.139:9090/api/ai/verify-package \
 **Enable/Disable AI Checks:**
 ```bash
 # Enable
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
   -t smartparcel/box-01/control \
   -m '{"aiCheck":"enable"}'
 
 # Disable
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
   -t smartparcel/box-01/control \
   -m '{"aiCheck":"disable"}'
 
 # Trigger now
-mosquitto_pub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
+mosquitto_pub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
   -t smartparcel/box-01/control \
   -m '{"aiCheck":"now"}'
 ```
 
 **Subscribe to AI Events:**
 ```bash
-mosquitto_sub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
+mosquitto_sub -h 3.27.11.106 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
   -t smartparcel/box-01/event
 ```
 
@@ -267,7 +267,7 @@ mosquitto_sub -h 3.27.0.139 -p 1884 -u mcuzaman -P 'McuZaman#2025Aman!' \
 
 **Get Stats:**
 ```bash
-curl http://3.27.0.139:9090/api/ai/stats
+curl http://3.27.11.106:9090/api/ai/stats
 ```
 
 **Verify:**
@@ -300,7 +300,7 @@ curl http://3.27.0.139:9090/api/ai/stats
 
 **Access Dashboard:**
 ```bash
-curl http://3.27.0.139:9090/api/ai/dashboard
+curl http://3.27.11.106:9090/api/ai/dashboard
 ```
 
 **Expected Data:**
@@ -339,7 +339,7 @@ curl http://3.27.0.139:9090/api/ai/dashboard
 
 **Check Alerts:**
 ```bash
-curl http://3.27.0.139:9090/api/ai/alerts
+curl http://3.27.11.106:9090/api/ai/alerts
 ```
 
 **Expected Response:**
