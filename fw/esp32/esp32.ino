@@ -1098,11 +1098,20 @@ void loop(){
     float cm = ultraCmStable();
     lastCm = cm;
 
+    // Always publish to MQTT, even if NaN (with error info)
     if (!isnan(cm)){
       char js[48]; snprintf(js, sizeof(js), "{\"cm\":%.2f}", cm);
       mqtt.publish(T_DIST.c_str(), js, false);
       Serial.printf("[ULTRA] %.2f cm\n", cm);
+    } else {
+      // Publish NaN with error reason for debugging
+      char js[128]; 
+      snprintf(js, sizeof(js), "{\"cm\":null,\"error\":\"sensor_timeout\",\"reason\":\"No echo received - check wiring or sensor\"}");
+      mqtt.publish(T_DIST.c_str(), js, false);
+      Serial.println("[ULTRA] NaN - Sensor timeout (no echo)");
+    }
 
+    if (!isnan(cm)){
       bool inWindow = (cm>=S.minCm && cm<=S.maxCm);
       bool safeAreaActive = (millis() - lastHolderRelease) < HOLDER_SAFE_AREA_MS;
 
