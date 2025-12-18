@@ -16,19 +16,19 @@ const modeOptions: { value: DetectionMode; label: string; description: string; i
     {
         value: 'FULL_HCSR',
         label: 'Ultrasonic Only',
-        description: 'Deteksi paket menggunakan sensor HC-SR04 saja. Cepat tapi kurang akurat.',
+        description: 'Hanya sensor ultrasonik HC-SR04. Langsung unlock tanpa foto/AI. Paling cepat.',
         icon: Cpu
     },
     {
         value: 'FULL_GEMINI',
         label: 'Gemini AI Only',
-        description: 'Deteksi paket menggunakan kamera + Gemini AI. Akurat tapi butuh internet.',
+        description: 'Hanya kamera + Gemini AI (periodic check). Sensor ultrasonik diabaikan.',
         icon: Camera
     },
     {
         value: 'BOTH',
         label: 'Both (Recommended)',
-        description: 'Kombinasi keduanya. Ultrasonic sebagai trigger, AI untuk verifikasi.',
+        description: 'Ultrasonik trigger foto + AI verifikasi. Kombinasi akurat & responsif.',
         icon: Layers
     }
 ];

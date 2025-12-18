@@ -1110,52 +1110,32 @@ void loop(){
       if (ultraEnabled && inWindow && !busy && (millis()-lastPipeline>PIPELINE_COOLDOWN_MS) && !safeAreaActive){
         
         if (detectionMode == "FULL_HCSR") {
-          // FULL_HCSR mode: langsung trigger package pipeline tanpa AI
+          // FULL_HCSR mode: langsung unlock TANPA foto, murni ultrasonic
           char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"ultrasonic_detected\",\"cm\":%.1f,\"mode\":\"FULL_HCSR\"}", cm);
           mqtt.publish(T_EVENT.c_str(), ev, false);
-          Serial.println("[ULTRA] FULL_HCSR mode - Package detected by ultrasonic only");
+          Serial.println("[ULTRA] FULL_HCSR mode - Direct unlock WITHOUT photo");
           
-          // Trigger pipeline directly (take photo + upload without AI verification)
           lastPipeline = millis();
           busy = true;
           
-          // Capture and upload photo (no AI verification)
-          camera_fb_t* fb = NULL;
-          flashOn(true); delay(100);
-          fb = esp_camera_fb_get();
-          flashOn(false);
-          
-          if (fb) {
-            String meta = "{\"deviceId\":\"" + String(DEV_ID) + "\",\"distance\":" + String(cm,1) + 
-                         ",\"mode\":\"FULL_HCSR\",\"aiVerified\":false}";
-            UploadResult ur = httpUploadMultipart(meta, fb->buf, fb->len);
-            esp_camera_fb_return(fb);
-            
-            if (ur.ok) {
-              Serial.println("[ULTRA] Photo uploaded successfully (no AI)");
-              mqtt.publish(T_PHSTAT.c_str(), "{\"status\":\"uploaded\",\"mode\":\"FULL_HCSR\"}", false);
-              
-              // Release holder and buzzer
-              lockPulseMs(S.lockMs);
-              lastHolderRelease = millis();
-              mqtt.publish(T_HOLDER_RELEASE.c_str(), "{\"status\":\"released\",\"trigger\":\"ultrasonic\"}", false);
-              buzzerPatternMs(S.buzzerMs);
-            } else {
-              Serial.printf("[ULTRA] Photo upload failed: HTTP %d\n", ur.http);
-            }
-          }
+          // Langsung release holder dan buzzer (TANPA foto)
+          lockPulseMs(S.lockMs);
+          lastHolderRelease = millis();
+          mqtt.publish(T_HOLDER_RELEASE.c_str(), "{\"status\":\"released\",\"trigger\":\"ultrasonic_only\"}", false);
+          buzzerPatternMs(S.buzzerMs);
           
           busy = false;
           
-        } else {
-          // BOTH mode: ultrasonic sebagai boost untuk AI check
+        } else if (detectionMode == "BOTH") {
+          // BOTH mode: ultrasonic sebagai boost untuk AI check (foto + AI)
           char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"ultrasonic_boost\",\"cm\":%.1f}", cm);
           mqtt.publish(T_EVENT.c_str(), ev, false);
           
-          Serial.println("[ULTRA] Boost trigger - performing immediate AI check");
+          Serial.println("[ULTRA] BOTH mode - Ultrasonic boost triggers AI check");
           lastAICheck = millis();
           performAICheck();
         }
+        // Note: FULL_GEMINI mode tidak masuk sini karena ultraEnabled = false
         
       } else if (inWindow && safeAreaActive) {
         Serial.println("[ULTRA] Detection blocked - Safe area active after holder release");

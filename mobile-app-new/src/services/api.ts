@@ -5,7 +5,7 @@ export const API_URL = 'http://3.27.11.106:9090/api';
 
 // Configurable settings
 export const API_CONFIG = {
-    POLLING_INTERVAL: 10000, // 10 seconds, can be overridden
+    POLLING_INTERVAL: 2000, // 2 seconds for near-realtime distance updates
     MAX_RETRIES: 3,
     RETRY_DELAY: 1000, // 1 second between retries
     TIMEOUT: 30000, // 30 second timeout
