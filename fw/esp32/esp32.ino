@@ -1136,10 +1136,10 @@ void loop(){
               mqtt.publish(T_PHSTAT.c_str(), "{\"status\":\"uploaded\",\"mode\":\"FULL_HCSR\"}", false);
               
               // Release holder and buzzer
-              relayPulse(PIN_REL1, S.lockMs);
+              lockPulseMs(S.lockMs);
               lastHolderRelease = millis();
               mqtt.publish(T_HOLDER_RELEASE.c_str(), "{\"status\":\"released\",\"trigger\":\"ultrasonic\"}", false);
-              startBuzzer(S.buzzerMs, S.buzzOn, S.buzzOff);
+              buzzerPatternMs(S.buzzerMs);
             } else {
               Serial.printf("[ULTRA] Photo upload failed: HTTP %d\n", ur.http);
             }
@@ -1165,4 +1165,5 @@ void loop(){
     }
   }
 
-  delay(5)
+  delay(5);
+}
