@@ -86,8 +86,8 @@ PubSubClient mqtt(tcp);
 const bool RELAY_ACTIVE_LOW = true;
 
 struct Settings {
-  float     minCm   = 12.0f;
-  float     maxCm   = 25.0f;
+  float     minCm   = 5.0f;   // Min detection range (cm)
+  float     maxCm   = 27.0f;  // Max detection range - below 28cm holder level
   uint32_t  lockMs  = 5000;
   uint32_t  buzzerMs= 60000;
   uint16_t  buzzOn  = 500;
