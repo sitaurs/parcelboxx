@@ -32,12 +32,15 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Rate limiting
+// Rate limiting - DISABLED for demo/development
+// Uncomment below for production with reasonable limits
+/*
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100 // limit each IP to 100 requests per windowMs
+  max: 10000 // Very high limit for demo (10k requests per 15 min)
 });
 app.use('/api/', limiter);
+*/
 
 // Serve static files from storage directory
 app.use('/storage', express.static(path.join(__dirname, 'storage')));

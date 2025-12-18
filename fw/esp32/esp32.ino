@@ -114,6 +114,9 @@ String lastAIMode = "IDLE"; // Track current AI mode (IDLE/ACTIVE/COOLDOWN/BOOST
 int consecutiveCameraFailures = 0; // Track consecutive camera failures
 const int MAX_CAMERA_FAILURES = 3; // Disable AI after 3 failures
 
+// Detection Mode: "FULL_HCSR" = only ultrasonic, "FULL_GEMINI" = only AI, "BOTH" = both (default)
+String detectionMode = "BOTH";
+
 // Timing constants
 const uint32_t PHOTO_DELAY_MIN_MS = 2000;
 const uint32_t PHOTO_DELAY_MAX_MS = 3000;
@@ -906,6 +909,28 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       int pms = s.indexOf("\"ms\"", p);
       if (pms>=0) S.buzzerMs = (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt();
     }
+    
+    // Parse detection mode: FULL_HCSR, FULL_GEMINI, or BOTH
+    p = s.indexOf("\"detection\"");
+    if (p>=0){
+      int pmode = s.indexOf("\"mode\"", p);
+      if (pmode>=0){
+        int colonPos = s.indexOf(':', pmode);
+        int quoteStart = s.indexOf('"', colonPos + 1);
+        int quoteEnd = s.indexOf('"', quoteStart + 1);
+        if (quoteStart>=0 && quoteEnd>=0){
+          String newMode = s.substring(quoteStart+1, quoteEnd);
+          if (newMode == "FULL_HCSR" || newMode == "FULL_GEMINI" || newMode == "BOTH"){
+            detectionMode = newMode;
+            Serial.printf("[SETTINGS] Detection mode changed to: %s\n", detectionMode.c_str());
+            
+            // Publish event for mode change
+            String evMsg = "{\"type\":\"mode_change\",\"detection\":\"" + detectionMode + "\"}";
+            mqtt.publish(T_EVENT.c_str(), evMsg.c_str(), false);
+          }
+        }
+      }
+    }
 
     if (S.minCm<5 || S.minCm>50 || S.maxCm<10 || S.maxCm>50 || S.minCm>=S.maxCm ||
         S.lockMs>60000UL || S.buzzerMs>300000UL){
@@ -1057,13 +1082,17 @@ void loop(){
   if (!mqtt.connected()) ensureMQTT();
   mqtt.loop();
 
-  // AI Periodic Check
-  if (aiCheckEnabled && (millis() - lastAICheck >= aiCheckInterval)) {
+  // AI Periodic Check - only run if mode is FULL_GEMINI or BOTH
+  bool aiEnabled = (detectionMode == "FULL_GEMINI" || detectionMode == "BOTH");
+  if (aiEnabled && aiCheckEnabled && (millis() - lastAICheck >= aiCheckInterval)) {
     lastAICheck = millis();
     performAICheck();
   }
 
   // Publish jarak & trigger pipeline (HC-SR04 as boost)
+  // Only run ultrasonic if mode is FULL_HCSR or BOTH
+  bool ultraEnabled = (detectionMode == "FULL_HCSR" || detectionMode == "BOTH");
+  
   if (millis()-tLastPub > 1000){
     tLastPub = millis();
     float cm = ultraCmStable();
@@ -1077,15 +1106,56 @@ void loop(){
       bool inWindow = (cm>=S.minCm && cm<=S.maxCm);
       bool safeAreaActive = (millis() - lastHolderRelease) < HOLDER_SAFE_AREA_MS;
 
-      // HC-SR04 now acts as BOOST trigger - priority detection
-      if (inWindow && !busy && (millis()-lastPipeline>PIPELINE_COOLDOWN_MS) && !safeAreaActive){
-        char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"ultrasonic_boost\",\"cm\":%.1f}", cm);
-        mqtt.publish(T_EVENT.c_str(), ev, false);
+      // HC-SR04 detection logic
+      if (ultraEnabled && inWindow && !busy && (millis()-lastPipeline>PIPELINE_COOLDOWN_MS) && !safeAreaActive){
         
-        Serial.println("[ULTRA] Boost trigger - performing immediate AI check");
-        // Langsung trigger AI check dengan priority
-        lastAICheck = millis(); // Reset timer
-        performAICheck(); // Will use ultrasonicTriggered=true
+        if (detectionMode == "FULL_HCSR") {
+          // FULL_HCSR mode: langsung trigger package pipeline tanpa AI
+          char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"ultrasonic_detected\",\"cm\":%.1f,\"mode\":\"FULL_HCSR\"}", cm);
+          mqtt.publish(T_EVENT.c_str(), ev, false);
+          Serial.println("[ULTRA] FULL_HCSR mode - Package detected by ultrasonic only");
+          
+          // Trigger pipeline directly (take photo + upload without AI verification)
+          lastPipeline = millis();
+          busy = true;
+          
+          // Capture and upload photo (no AI verification)
+          camera_fb_t* fb = NULL;
+          flashOn(true); delay(100);
+          fb = esp_camera_fb_get();
+          flashOn(false);
+          
+          if (fb) {
+            String meta = "{\"deviceId\":\"" + String(DEV_ID) + "\",\"distance\":" + String(cm,1) + 
+                         ",\"mode\":\"FULL_HCSR\",\"aiVerified\":false}";
+            UploadResult ur = httpUploadMultipart(meta, fb->buf, fb->len);
+            esp_camera_fb_return(fb);
+            
+            if (ur.ok) {
+              Serial.println("[ULTRA] Photo uploaded successfully (no AI)");
+              mqtt.publish(T_PHSTAT.c_str(), "{\"status\":\"uploaded\",\"mode\":\"FULL_HCSR\"}", false);
+              
+              // Release holder and buzzer
+              relayPulse(PIN_REL1, S.lockMs);
+              lastHolderRelease = millis();
+              mqtt.publish(T_HOLDER_RELEASE.c_str(), "{\"status\":\"released\",\"trigger\":\"ultrasonic\"}", false);
+              startBuzzer(S.buzzerMs, S.buzzOn, S.buzzOff);
+            } else {
+              Serial.printf("[ULTRA] Photo upload failed: HTTP %d\n", ur.http);
+            }
+          }
+          
+          busy = false;
+          
+        } else {
+          // BOTH mode: ultrasonic sebagai boost untuk AI check
+          char ev[80]; snprintf(ev, sizeof(ev), "{\"type\":\"ultrasonic_boost\",\"cm\":%.1f}", cm);
+          mqtt.publish(T_EVENT.c_str(), ev, false);
+          
+          Serial.println("[ULTRA] Boost trigger - performing immediate AI check");
+          lastAICheck = millis();
+          performAICheck();
+        }
         
       } else if (inWindow && safeAreaActive) {
         Serial.println("[ULTRA] Detection blocked - Safe area active after holder release");
@@ -1095,5 +1165,4 @@ void loop(){
     }
   }
 
-  delay(5);
-}
+  delay(5)

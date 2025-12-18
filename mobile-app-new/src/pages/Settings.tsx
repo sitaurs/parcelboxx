@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { User, Lock, Key, LogOut, ChevronRight, Sliders, Activity } from 'lucide-react';
+import { User, Lock, Key, LogOut, ChevronRight, Sliders, Activity, Radio } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { authAPI } from '../services/api';
 import { useToast } from '../hooks/useToast';
 import Card from '../components/Card';
 import ChangePasswordModal from '../components/modals/ChangePasswordModal';
 import ChangePinModal from '../components/modals/ChangePinModal';
+import DetectionModeModal from '../components/modals/DetectionModeModal';
 import ConfirmationModal from '../components/ConfirmationModal';
 
 export default function Settings() {
@@ -17,6 +18,7 @@ export default function Settings() {
     const [showPasswordModal, setShowPasswordModal] = useState(false);
     const [showAppPinModal, setShowAppPinModal] = useState(false);
     const [showDoorPinModal, setShowDoorPinModal] = useState(false);
+    const [showDetectionModeModal, setShowDetectionModeModal] = useState(false);
     const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
     const [isLoggingOut, setIsLoggingOut] = useState(false);
 
@@ -73,6 +75,12 @@ export default function Settings() {
                         label="Device Control"
                         onClick={() => navigate('/device-control')}
                         color="text-blue-600"
+                    />
+                    <SettingItem
+                        icon={Radio}
+                        label="Detection Mode"
+                        onClick={() => setShowDetectionModeModal(true)}
+                        color="text-green-600"
                     />
                     <SettingItem
                         icon={Activity}
@@ -132,6 +140,10 @@ export default function Settings() {
                 isOpen={showDoorPinModal}
                 onClose={() => setShowDoorPinModal(false)}
                 type="door"
+            />
+            <DetectionModeModal
+                isOpen={showDetectionModeModal}
+                onClose={() => setShowDetectionModeModal(false)}
             />
             <ConfirmationModal
                 isOpen={showLogoutConfirm}

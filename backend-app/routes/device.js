@@ -127,7 +127,7 @@ router.get('/settings', authMiddleware, (req, res) => {
  */
 router.put('/settings', authMiddleware, async (req, res) => {
   try {
-    const { ultra, lock, buzzer, doorLock } = req.body;
+    const { ultra, lock, buzzer, doorLock, detection } = req.body;
     
     // Validation for ultra sensor settings
     if (ultra) {
@@ -157,6 +157,19 @@ router.put('/settings', authMiddleware, async (req, res) => {
           field: 'ultra',
           min,
           max
+        });
+      }
+    }
+    
+    // Validation for detection mode
+    if (detection && detection.mode !== undefined) {
+      const validModes = ['FULL_HCSR', 'FULL_GEMINI', 'BOTH'];
+      if (!validModes.includes(detection.mode)) {
+        return res.status(400).json({ 
+          error: 'detection.mode harus FULL_HCSR, FULL_GEMINI, atau BOTH',
+          field: 'detection.mode',
+          value: detection.mode,
+          allowedValues: validModes
         });
       }
     }
@@ -203,7 +216,8 @@ router.put('/settings', authMiddleware, async (req, res) => {
       ...(ultra && { ultra: { ...currentSettings.ultra, ...ultra } }),
       ...(lock && { lock: { ...currentSettings.lock, ...lock } }),
       ...(buzzer && { buzzer: { ...currentSettings.buzzer, ...buzzer } }),
-      ...(doorLock && { doorLock: { ...currentSettings.doorLock, ...doorLock } })
+      ...(doorLock && { doorLock: { ...currentSettings.doorLock, ...doorLock } }),
+      ...(detection && { detection: { ...currentSettings.detection, ...detection } })
     };
     
     updateDB('settings', newSettings);
@@ -212,7 +226,8 @@ router.put('/settings', authMiddleware, async (req, res) => {
     const mqttSettings = {
       ...(ultra && { ultra: newSettings.ultra }),
       ...(lock && { lock: newSettings.lock }),
-      ...(buzzer && { buzzer: newSettings.buzzer })
+      ...(buzzer && { buzzer: newSettings.buzzer }),
+      ...(detection && { detection: newSettings.detection })
     };
     
     if (Object.keys(mqttSettings).length > 0) {
