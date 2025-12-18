@@ -5,7 +5,7 @@ export const API_URL = 'http://3.27.11.106:9090/api';
 
 // Configurable settings
 export const API_CONFIG = {
-    POLLING_INTERVAL: 2000, // 2 seconds for near-realtime distance updates
+    POLLING_INTERVAL: 5000, // 5 seconds - optimized for battery life (was 2s)
     MAX_RETRIES: 3,
     RETRY_DELAY: 1000, // 1 second between retries
     TIMEOUT: 30000, // 30 second timeout
@@ -84,6 +84,12 @@ const request = async (endpoint: string, options: RequestOptions = {}, retryCoun
         }
 
         if (!response.ok) {
+            // Check if we should retry for 429 (Rate Limit) or 503 (Service Unavailable)
+            if ((response.status === 429 || response.status === 503) && retryCount < maxRetries) {
+                console.warn(`API retry ${retryCount + 1}/${maxRetries} for ${endpoint} (HTTP ${response.status})`);
+                await sleep(API_CONFIG.RETRY_DELAY * Math.pow(2, retryCount)); // Exponential backoff
+                return request(endpoint, options, retryCount + 1);
+            }
             throw new Error(data?.error || data?.message || `HTTP ${response.status}: ${response.statusText}`);
         }
 

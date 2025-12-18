@@ -197,7 +197,10 @@ class AIMetricsCollector {
     
     // Check key health
     const geminiHealth = this.aiEngine.getHealthReport().gemini;
-    const unhealthyKeys = geminiHealth.keys.filter(k => k.status === 'unhealthy');
+    // BUGFIX: Add null check to prevent crash when geminiHealth or keys is undefined
+    const unhealthyKeys = (geminiHealth && geminiHealth.keys) 
+      ? geminiHealth.keys.filter(k => k.status === 'unhealthy') 
+      : [];
     
     if (unhealthyKeys.length >= 3) {
       alerts.push({

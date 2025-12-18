@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Wifi, Lock, Signal, Package, Zap, VolumeX, Unlock } from 'lucide-react';
+import { Wifi, Lock, Signal, Package, Zap, VolumeX, Unlock, Radio, Cpu, Camera, Layers } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { deviceAPI, packageAPI, API_CONFIG } from '../services/api';
 import { useToast } from '../hooks/useToast';
@@ -17,19 +17,25 @@ export default function Dashboard() {
     const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
     const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
     const [isReleasing, setIsReleasing] = useState(false);
+    const [detectionMode, setDetectionMode] = useState<string>('BOTH');
 
     const loadData = async () => {
         try {
-            const [statusRes, statsRes, pkgRes] = await Promise.all([
+            const [statusRes, statsRes, pkgRes, settingsRes] = await Promise.all([
                 deviceAPI.getStatus(),
                 packageAPI.getStats(),
-                packageAPI.getList(1, 0)
+                packageAPI.getList(1, 0),
+                deviceAPI.getSettings()
             ]);
 
             setDeviceStatus(statusRes.status);
             setStats(statsRes.stats);
             if (pkgRes.packages.length > 0) {
                 setLatestPackage(pkgRes.packages[0]);
+            }
+            // Load detection mode from settings
+            if (settingsRes.settings?.detection?.mode) {
+                setDetectionMode(settingsRes.settings.detection.mode);
             }
         } catch (err) {
             console.error('Failed to load dashboard data', err);
@@ -82,6 +88,34 @@ export default function Dashboard() {
                     {deviceStatus?.isOnline ? 'Online' : 'Offline'}
                 </div>
             </div>
+
+            {/* Detection Mode Indicator */}
+            <Card className="bg-gradient-to-r from-blue-50 to-purple-50 border-blue-100">
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-full flex items-center justify-center">
+                            {detectionMode === 'FULL_HCSR' && <Cpu className="w-5 h-5 text-blue-600" />}
+                            {detectionMode === 'FULL_GEMINI' && <Camera className="w-5 h-5 text-purple-600" />}
+                            {detectionMode === 'BOTH' && <Layers className="w-5 h-5 text-green-600" />}
+                        </div>
+                        <div>
+                            <p className="text-xs text-gray-600 font-medium">Detection Mode</p>
+                            <p className="text-sm font-bold text-gray-900">
+                                {detectionMode === 'FULL_HCSR' && '📡 Ultrasonic Only'}
+                                {detectionMode === 'FULL_GEMINI' && '🤖 AI Camera Only'}
+                                {detectionMode === 'BOTH' && '🔄 Hybrid (Both)'}
+                            </p>
+                        </div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                        detectionMode === 'FULL_HCSR' ? 'bg-blue-100 text-blue-700' :
+                        detectionMode === 'FULL_GEMINI' ? 'bg-purple-100 text-purple-700' :
+                        'bg-green-100 text-green-700'
+                    }`}>
+                        Active
+                    </div>
+                </div>
+            </Card>
 
             {/* Device Status Card */}
             <Card className="space-y-4">
