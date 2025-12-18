@@ -38,6 +38,9 @@ const initialData = {
     doorLock: {
       ms: 3000 // Door lock solenoid duration
     },
+    detection: {
+      mode: 'FULL_HCSR' // Default: Ultrasonic only (fastest, no AI overhead)
+    },
     updatedAt: new Date().toISOString()
   },
   

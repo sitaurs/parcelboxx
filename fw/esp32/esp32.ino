@@ -114,8 +114,9 @@ String lastAIMode = "IDLE"; // Track current AI mode (IDLE/ACTIVE/COOLDOWN/BOOST
 int consecutiveCameraFailures = 0; // Track consecutive camera failures
 const int MAX_CAMERA_FAILURES = 3; // Disable AI after 3 failures
 
-// Detection Mode: "FULL_HCSR" = only ultrasonic, "FULL_GEMINI" = only AI, "BOTH" = both (default)
-String detectionMode = "BOTH";
+// Detection Mode: "FULL_HCSR" = only ultrasonic, "FULL_GEMINI" = only AI, "BOTH" = both
+// DEFAULT: FULL_HCSR (fastest, no AI/photo overhead)
+String detectionMode = "FULL_HCSR";
 
 // Timing constants
 const uint32_t PHOTO_DELAY_MIN_MS = 2000;
