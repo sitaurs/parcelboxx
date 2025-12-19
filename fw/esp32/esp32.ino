@@ -756,19 +756,19 @@ void runPipeline(float cm){
     yield();
   }
 
-  // 3) SOLENOID PULSE 2x (1 detik each) + FINAL HOLD 8 detik
+  // 3) SOLENOID PULSE 2x (0.5 detik each) + FINAL HOLD 8 detik
   Serial.println("[PIPELINE] Step 3: Releasing holder with pulse pattern...");
   
-  // Pulse 1: 1 detik ON
-  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_pulse1\",\"ms\":1000}", false);
-  Serial.println("[SOLENOID] Pulse 1/2 - 1 second");
-  lockPulseMs(1000);
+  // Pulse 1: 0.5 detik ON
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_pulse1\",\"ms\":500}", false);
+  Serial.println("[SOLENOID] Pulse 1/2 - 0.5 second");
+  lockPulseMs(500);
   delay(500); // Jeda 0.5 detik antar pulse
   
-  // Pulse 2: 1 detik ON
-  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_pulse2\",\"ms\":1000}", false);
-  Serial.println("[SOLENOID] Pulse 2/2 - 1 second");
-  lockPulseMs(1000);
+  // Pulse 2: 0.5 detik ON
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_pulse2\",\"ms\":500}", false);
+  Serial.println("[SOLENOID] Pulse 2/2 - 0.5 second");
+  lockPulseMs(500);
   delay(500); // Jeda 0.5 detik sebelum hold final
   
   // Final hold: 8 detik ON (paket jatuh)
