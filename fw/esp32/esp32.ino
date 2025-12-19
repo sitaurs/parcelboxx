@@ -756,12 +756,28 @@ void runPipeline(float cm){
     yield();
   }
 
-  // 3) SOLENOID ON -> release holder (paket jatuh)
-  Serial.println("[PIPELINE] Step 3: Releasing holder (solenoid active)...");
-  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"solenoid_active\",\"ms\":"+String(S.lockMs)+"}").c_str(), false);
-  lockPulseMs(S.lockMs);
+  // 3) SOLENOID PULSE 2x (1 detik each) + FINAL HOLD 8 detik
+  Serial.println("[PIPELINE] Step 3: Releasing holder with pulse pattern...");
+  
+  // Pulse 1: 1 detik ON
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_pulse1\",\"ms\":1000}", false);
+  Serial.println("[SOLENOID] Pulse 1/2 - 1 second");
+  lockPulseMs(1000);
+  delay(500); // Jeda 0.5 detik antar pulse
+  
+  // Pulse 2: 1 detik ON
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_pulse2\",\"ms\":1000}", false);
+  Serial.println("[SOLENOID] Pulse 2/2 - 1 second");
+  lockPulseMs(1000);
+  delay(500); // Jeda 0.5 detik sebelum hold final
+  
+  // Final hold: 8 detik ON (paket jatuh)
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_hold_final\",\"ms\":8000}", false);
+  Serial.println("[SOLENOID] Final hold - 8 seconds (package dropping)");
+  lockPulseMs(8000);
+  
   lastHolderRelease = millis();
-  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_off\"}", false);
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_complete\"}", false);
 
   // 4) BUZZER KEDIP-KEDIP
   Serial.println("[PIPELINE] Step 4: Buzzer notification...");
