@@ -21,7 +21,7 @@ const char* password = "asdasdasd";
 const char* mqtt_server = "3.27.11.106";  // MQTT Broker
 const int mqtt_port = 1884;
 const char* mqtt_user = "mcuzaman";  // MQTT authentication
-const char* mqtt_pass = "McuZaman#2025Aman!";  // MQTT authentication
+const char* mqtt_pass = "SimplePass123";  // MQTT password (same as ESP32)
 
 // MQTT Topics
 const char* topic_control = "smartparcel/lock/control";  // Subscribe: receive unlock commands from PWA

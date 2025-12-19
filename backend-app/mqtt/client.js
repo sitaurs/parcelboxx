@@ -157,17 +157,32 @@ function handleMessage(topic, message) {
     // Lock Status (from ESP8266)
     else if (topic === TOPICS.LOCK_STATUS) {
       const lockStatus = JSON.parse(payload);
-      console.log('Lock status:', lockStatus);
+      console.log('🔐 Lock status:', lockStatus);
       
-      // If failed attempts >= 3, send security alert
+      // If failed attempts >= 3, send security alert (lockout)
       if (lockStatus.method === 'keypad_lockout' && lockStatus.attempts >= 3) {
+        console.log('🚨 LOCKOUT TRIGGERED! Sending WhatsApp alert...');
         notifyWhatsAppBackend({
           type: 'security_alert',
           attempts: lockStatus.attempts,
           timestamp: new Date().toISOString(),
           deviceId: DEVICE_ID,
-          reason: `${lockStatus.attempts} percobaan gagal membuka kunci pintu`
+          reason: `🚨 LOCKOUT: ${lockStatus.attempts} percobaan gagal membuka kunci pintu. Perangkat terkunci selama 30 detik.`
         });
+      }
+      // Send alert for each failed attempt (not just lockout)
+      else if (lockStatus.method === 'keypad_failed') {
+        console.log(`⚠️ Failed PIN attempt #${lockStatus.attempts}`);
+        // Only notify on 2nd and 3rd failed attempt
+        if (lockStatus.attempts >= 2) {
+          notifyWhatsAppBackend({
+            type: 'security_alert',
+            attempts: lockStatus.attempts,
+            timestamp: new Date().toISOString(),
+            deviceId: DEVICE_ID,
+            reason: `⚠️ Percobaan PIN salah ke-${lockStatus.attempts}. ${3 - lockStatus.attempts} kesempatan tersisa sebelum lockout.`
+          });
+        }
       }
     }
     
