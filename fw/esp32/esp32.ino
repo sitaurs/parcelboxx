@@ -690,35 +690,55 @@ void runPipeline(float cm){
   stopBuzz=false; 
   stopLock=false;
 
-  // 1) Tunggu acak 2–3s
-  uint32_t d1 = PHOTO_DELAY_MIN_MS + (esp_random() % (PHOTO_DELAY_MAX_MS - PHOTO_DELAY_MIN_MS + 1));
-  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"wait_before_photo\",\"ms\":"+String(d1)+"}").c_str(), false);
-  if (!breatheDelayCancelable(d1)){ busy=false; return; }
-
-  // 2) Foto + upload
-  bool sent = captureAndUploadWithRetry("detect", cm);
-  mqtt.publish(T_EVENT.c_str(), sent? "{\"step\":\"photo_ok\"}" : "{\"step\":\"photo_failed\"}", false);
-
-  if (!sent){
-    Serial.println("[PIPELINE] Photo upload failed, but continuing to unlock holder");
-    mqtt.publish(T_EVENT.c_str(), "{\"step\":\"photo_failed_continue\",\"reason\":\"prevent_package_stuck\"}", false);
+  Serial.println("[PIPELINE] Starting sequence: FOTO → DELAY 7s → SOLENOID → BUZZER");
+  
+  // 1) FOTO DULU - Retry sampai berhasil atau max 5 kali
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"capturing_photo\"}", false);
+  Serial.println("[PIPELINE] Step 1: Capturing photo...");
+  
+  bool sent = false;
+  int photoRetries = 0;
+  const int MAX_PHOTO_RETRIES = 5;
+  
+  while (!sent && photoRetries < MAX_PHOTO_RETRIES) {
+    photoRetries++;
+    Serial.printf("[PIPELINE] Photo attempt %d/%d\n", photoRetries, MAX_PHOTO_RETRIES);
+    mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"photo_attempt\",\"retry\":"+String(photoRetries)+"}").c_str(), false);
+    
+    sent = captureAndUploadWithRetry("detect", cm);
+    
+    if (!sent && photoRetries < MAX_PHOTO_RETRIES) {
+      Serial.println("[PIPELINE] Photo failed, retrying in 1s...");
+      delay(1000);
+    }
+  }
+  
+  if (sent) {
+    Serial.println("[PIPELINE] ✅ Photo uploaded successfully!");
+    mqtt.publish(T_EVENT.c_str(), "{\"step\":\"photo_success\"}", false);
+  } else {
+    Serial.println("[PIPELINE] ❌ Photo failed after all retries, continuing anyway");
+    mqtt.publish(T_EVENT.c_str(), "{\"step\":\"photo_failed_all_retries\",\"reason\":\"prevent_package_stuck\"}", false);
   }
 
-  // 3) Tunggu acak 1–2s
-  uint32_t d2 = LOCK_DELAY_MIN_MS + (esp_random() % (LOCK_DELAY_MAX_MS - LOCK_DELAY_MIN_MS + 1));
-  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"wait_before_lock\",\"ms\":"+String(d2)+"}").c_str(), false);
-  if (!breatheDelayCancelable(d2)){ busy=false; return; }
+  // 2) DELAY 7 DETIK sebelum solenoid aktif
+  Serial.println("[PIPELINE] Step 2: Waiting 7 seconds before releasing holder...");
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"wait_before_release\",\"ms\":7000}", false);
+  if (!breatheDelayCancelable(7000)){ busy=false; return; }
 
-  // 4) Solenoid ON (lockMs) -> release holder
-  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"lock_on_ms\",\"ms\":"+String(S.lockMs)+"}").c_str(), false);
+  // 3) SOLENOID ON -> release holder (paket jatuh)
+  Serial.println("[PIPELINE] Step 3: Releasing holder (solenoid active)...");
+  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"solenoid_active\",\"ms\":"+String(S.lockMs)+"}").c_str(), false);
   lockPulseMs(S.lockMs);
   lastHolderRelease = millis();
-  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"lock_off\"}", false);
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_off\"}", false);
 
-  // 5) Buzzer
-  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"buzzer_ms\",\"ms\":"+String(S.buzzerMs)+"}").c_str(), false);
+  // 4) BUZZER KEDIP-KEDIP
+  Serial.println("[PIPELINE] Step 4: Buzzer notification...");
+  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"buzzer_notification\",\"ms\":"+String(S.buzzerMs)+"}").c_str(), false);
   buzzerPatternMs(S.buzzerMs);
 
+  Serial.println("[PIPELINE] ✅ Pipeline complete!");
   busy = false;
   lastPipeline = millis();
 }
@@ -1013,6 +1033,7 @@ void setup(){
   pinMode(PIN_ECHO, INPUT); // via divider!
   pinMode(PIN_REL1, OUTPUT); pinMode(PIN_REL2, OUTPUT);
   relayWrite(PIN_REL1, false); relayWrite(PIN_REL2, false);
+  
   pinMode(PIN_FLASH, OUTPUT); digitalWrite(PIN_FLASH, LOW);
   Serial.println("[BOOT] GPIO OK");
 
