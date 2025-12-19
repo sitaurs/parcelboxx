@@ -659,10 +659,25 @@ void performAICheck(){
 void buzzerPatternMs(uint32_t totalMs){
   stopBuzz = false;
   unsigned long start = millis();
+  bool buzzState = false;
+  unsigned long lastToggle = millis();
+  
   while (millis() - start < totalMs){
     if (stopAll || stopBuzz) break;
-    relayWrite(PIN_REL2, true);  if (!breatheDelayCancelable(S.buzzOn)) break;
-    relayWrite(PIN_REL2, false); if (!breatheDelayCancelable(S.buzzOff)) break;
+    
+    // Non-blocking toggle for buzzer pattern
+    unsigned long now = millis();
+    unsigned long toggleInterval = buzzState ? S.buzzOn : S.buzzOff;
+    
+    if (now - lastToggle >= toggleInterval) {
+      buzzState = !buzzState;
+      relayWrite(PIN_REL2, buzzState);
+      lastToggle = now;
+    }
+    
+    // Keep system responsive
+    if (mqtt.connected()) mqtt.loop();
+    yield();
   }
   relayWrite(PIN_REL2, false);
 }
@@ -730,10 +745,16 @@ void runPipeline(float cm){
     mqtt.publish(T_EVENT.c_str(), "{\"step\":\"photo_failed_all_retries\",\"reason\":\"prevent_package_stuck\"}", false);
   }
 
-  // 2) DELAY 7 DETIK sebelum solenoid aktif
+  // 2) DELAY 7 DETIK sebelum solenoid aktif (non-blocking)
   Serial.println("[PIPELINE] Step 2: Waiting 7 seconds before releasing holder...");
   mqtt.publish(T_EVENT.c_str(), "{\"step\":\"wait_before_release\",\"ms\":7000}", false);
-  if (!breatheDelayCancelable(7000)){ busy=false; return; }
+  
+  unsigned long waitStart = millis();
+  while (millis() - waitStart < 7000) {
+    if (stopAll) { busy=false; return; }
+    if (mqtt.connected()) mqtt.loop();
+    yield();
+  }
 
   // 3) SOLENOID ON -> release holder (paket jatuh)
   Serial.println("[PIPELINE] Step 3: Releasing holder (solenoid active)...");
