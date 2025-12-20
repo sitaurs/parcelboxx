@@ -512,7 +512,6 @@ void runDetectionPipeline(float cm){
   } else {
     Serial.println("   ⊗ Buzzer skipped (disabled)");
   }
-  Serial.println("");✓ Buzzer notification done");
   Serial.println("");
   
   busy = false;
@@ -536,6 +535,19 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
     if (s.indexOf("\"capture\"")>=0 && s.indexOf("true")>=0){
       bool ok = captureAndUploadUntilSuccess("manual", lastCm);
       ack(String("{\"ok\":")+(ok?"true":"false")+",\"action\":\"capture\"}");
+      return;
+    }
+    if (s.indexOf("\"flash\"")>=0){
+      if (s.indexOf("\"on\"")>=0){ flashOn(true); ack("{\"ok\":true,\"action\":\"flash\",\"state\":\"on\"}"); return; }
+      if (s.indexOf("\"off\"")>=0){ flashOn(false); ack("{\"ok\":true,\"action\":\"flash\",\"state\":\"off\"}"); return; }
+      int pms = s.indexOf("\"ms\"");
+      if (pms>=0){
+        uint32_t ms = (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt();
+        flashOn(true); delay(ms); flashOn(false);
+        ack(String("{\"ok\":true,\"action\":\"flash\",\"state\":\"pulse\",\"ms\":")+ms+"}");
+      }
+      return;
+    }
     if (s.indexOf("\"buzzer\"")>=0){
       // Stop buzzer
       if (s.indexOf("\"stop\"")>=0){ 
@@ -556,26 +568,14 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       // Disable buzzer
       if (s.indexOf("\"disable\"")>=0 || s.indexOf("\"off\"")>=0){ 
         S.buzzerEnabled = false;
-        stopBuzz = true; // Stop current buzzer if running
+        stopBuzz = true;
         relayWrite(PIN_BUZZER,false);
         mqtt.publish(T_BUZZER_CFG.c_str(), "{\"enabled\":false}", true);
         ack("{\"ok\":true,\"action\":\"buzzer_disable\",\"enabled\":false}");
         Serial.println("[BUZZER] DISABLED - notification only mode");
         return; 
-      String diagResult = String("{\"ok\":true,\"action\":\"diagnostic\",") +
-        "\"camera\":\"" + camStatus + "\"," +
-        "\"ultrasonic\":\"" + ultraStatus + "\"," +
-        "\"distance\":" + (isnan(testCm) ? "null" : String(testCm,1)) + "," +
-        "\"wifi\":\"" + (WiFi.status()==WL_CONNECTED ? "OK":"FAIL") + "\"," +
-        "\"mqtt\":\"" + (mqtt.connected() ? "OK":"FAIL") + "\"," +
-        "\"mode\":\"no_holder\"," +
-        "\"buzzerEnabled\":" + (S.buzzerEnabled ? "true":"false") + "," +
-        "\"freeHeap\":" + String(ESP.getFreeHeap()) + "}";
-        stopBuzz = true; 
-        relayWrite(PIN_BUZZER,false); 
-        ack("{\"ok\":true,\"action\":\"buzzer\",\"state\":\"stopping\"}"); 
-        return; 
       }
+      // Manual test buzzer with ms duration
       int pms = s.indexOf("\"ms\"");
       uint32_t ms = (pms>=0) ? (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt() : S.buzzerMs;
       ack(String("{\"ok\":true,\"action\":\"buzzer\",\"state\":\"start\",\"ms\":")+ms+"}");
@@ -588,11 +588,9 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       float testCm = ultraOne();
       String ultraStatus = isnan(testCm) ? "FAIL" : "OK";
       
-  mqtt.publish(T_STATUS.c_str(), "online", true);
-  mqtt.subscribe(T_CTRL.c_str());
-  // Publish initial buzzer config
-  mqtt.publish(T_BUZZER_CFG.c_str(), String("{\"enabled\":"+(S.buzzerEnabled?"true":"false")+"}").c_str(), true);
-}     flashOn(false);
+      flashOn(true); delay(100);
+      camera_fb_t* testFb = esp_camera_fb_get();
+      flashOn(false);
       String camStatus = testFb ? "OK" : "FAIL";
       if (testFb) esp_camera_fb_return(testFb);
       
@@ -603,6 +601,7 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
         "\"wifi\":\"" + (WiFi.status()==WL_CONNECTED ? "OK":"FAIL") + "\"," +
         "\"mqtt\":\"" + (mqtt.connected() ? "OK":"FAIL") + "\"," +
         "\"mode\":\"no_holder\"," +
+        "\"buzzerEnabled\":" + (S.buzzerEnabled ? "true":"false") + "," +
         "\"freeHeap\":" + String(ESP.getFreeHeap()) + "}";
       
       ack(diagResult);
@@ -624,6 +623,8 @@ void ensureMQTT(){
   }
   mqtt.publish(T_STATUS.c_str(), "online", true);
   mqtt.subscribe(T_CTRL.c_str());
+  // Publish initial buzzer config
+  mqtt.publish(T_BUZZER_CFG.c_str(), String("{\"enabled\":"+(S.buzzerEnabled?"true":"false")+"}").c_str(), true);
 }
 
 // ===================== CAMERA =====================
@@ -791,17 +792,10 @@ void setup(){
   Serial.println("[BOOT] Testing HC-SR04...");
   delay(500);
   float testCm = ultraOne();
-  Serial.printf("   Detection Range: %.1f - %.1f cm\n", S.minCm, S.maxCm);
-  Serial.printf("   Cooldown: %d seconds\n", DETECTION_COOLDOWN_MS/1000);
-  Serial.printf("   Buzzer Duration: %d seconds\n", S.buzzerMs/1000);
-  Serial.printf("   Buzzer Status: %s\n", S.buzzerEnabled ? "ENABLED" : "DISABLED");
-  Serial.println("════════════════════════════════════════════");
-  Serial.println("   MQTT Buzzer Commands:                    ");
-  Serial.println("   - {\"buzzer\":{\"enable\":true}}         ");
-  Serial.println("   - {\"buzzer\":{\"disable\":true}}        ");
-  Serial.println("   - {\"buzzer\":{\"stop\":true}}           ");
-  Serial.println("════════════════════════════════════════════");
-  Serial.println("");WARN] Check connections:");
+  if (!isnan(testCm)) {
+    Serial.printf("[BOOT] HC-SR04 test OK (%.1f cm)\n", testCm);
+  } else {
+    Serial.println("[WARN] HC-SR04 test FAILED - Check connections:");
     Serial.println("  - TRIG -> GPIO 14");
     Serial.println("  - ECHO -> GPIO 2 (via 5V->3.3V divider!)");
     Serial.println("  - VCC  -> 5V");
@@ -824,6 +818,12 @@ void setup(){
   Serial.printf("   Detection Range: %.1f - %.1f cm\n", S.minCm, S.maxCm);
   Serial.printf("   Cooldown: %d seconds\n", DETECTION_COOLDOWN_MS/1000);
   Serial.printf("   Buzzer Duration: %d seconds\n", S.buzzerMs/1000);
+  Serial.printf("   Buzzer Status: %s\n", S.buzzerEnabled ? "ENABLED" : "DISABLED");
+  Serial.println("════════════════════════════════════════════");
+  Serial.println("   MQTT Buzzer Commands:                    ");
+  Serial.println("   - {\"buzzer\":{\"enable\":true}}         ");
+  Serial.println("   - {\"buzzer\":{\"disable\":true}}        ");
+  Serial.println("   - {\"buzzer\":{\"stop\":true}}           ");
   Serial.println("════════════════════════════════════════════");
   Serial.println("");
 }
