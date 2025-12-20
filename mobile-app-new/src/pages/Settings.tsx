@@ -80,15 +80,15 @@ export default function Settings() {
                 <Card className="!p-0 overflow-hidden" delay={0.1}>
                     <SettingItem
                         icon={Sliders}
-                        label="Device Control"
-                        onClick={() => navigate('/device-control')}
+                        label="Device Settings"
+                        onClick={() => navigate('/device-settings')}
                         color="text-blue-600"
                         index={0}
                     />
                     <SettingItem
                         icon={Activity}
-                        label="Test Device Hardware"
-                        onClick={() => navigate('/test-device')}
+                        label="Test Device"
+                        onClick={() => navigate('/device-test')}
                         color="text-purple-600"
                         index={1}
                     />
