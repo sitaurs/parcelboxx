@@ -328,17 +328,41 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
   int attempt = 0;
   int captureFails = 0;
   
-  // CRITICAL: Flush old frames from buffer before new capture
+  // CRITICAL: Flush old frames and warm up camera before new capture
   // This fixes the "capture fails after first detection" bug
-  Serial.println("[PHOTO] Flushing old frames from buffer...");
-  for(int i = 0; i < 3; i++) {
+  Serial.println("[PHOTO] Warming up camera and flushing old frames...");
+  
+  // First, do a quick I2C recovery to wake up camera
+  i2cRecover();
+  delay(100);
+  
+  // Flush more frames (5 instead of 3) for first detection reliability
+  int flushed = 0;
+  for(int i = 0; i < 5; i++) {
     camera_fb_t* old = esp_camera_fb_get();
     if (old) {
+      flushed++;
+      Serial.printf("[PHOTO] Flushed frame %d (%d bytes)\n", flushed, old->len);
       esp_camera_fb_return(old);
-      Serial.printf("[PHOTO] Flushed frame %d (%d bytes)\n", i+1, old->len);
     }
     delay(50);
   }
+  
+  // If no frames were flushed, camera might be stuck - do recovery
+  if (flushed == 0) {
+    Serial.println("[PHOTO] No frames to flush - camera might be cold, warming up...");
+    i2cRecover();
+    delay(200);
+    // Try one more capture to wake it up
+    camera_fb_t* warmup = esp_camera_fb_get();
+    if (warmup) {
+      Serial.printf("[PHOTO] Warmup capture OK (%d bytes)\n", warmup->len);
+      esp_camera_fb_return(warmup);
+    }
+    delay(100);
+  }
+  
+  Serial.println("[PHOTO] Camera ready for capture");
   
   while (attempt < MAX_ATTEMPTS) {
     if (stopAll) return false;
@@ -831,6 +855,17 @@ void setup(){
   if (testFb) {
     Serial.printf("[BOOT] Camera test OK (%d bytes)\n", testFb->len);
     esp_camera_fb_return(testFb);
+    
+    // CRITICAL: Flush buffer after test to prevent first detection failure
+    Serial.println("[BOOT] Flushing camera buffer after test...");
+    for(int i = 0; i < 5; i++) {
+      camera_fb_t* flush = esp_camera_fb_get();
+      if (flush) {
+        esp_camera_fb_return(flush);
+      }
+      delay(30);
+    }
+    Serial.println("[BOOT] Buffer flushed - ready for detection");
   } else {
     Serial.println("[WARN] Camera test failed, but continuing...");
   }
