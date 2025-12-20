@@ -120,6 +120,8 @@ export const deviceAPI = {
 
     updateDoorPin: (pin: string) =>
         request('/device/control/door-pin', { method: 'POST', body: JSON.stringify({ pin }) }),
+
+    diagnostic: () => request('/device/diagnostic'),
 };
 
 export const packageAPI = {

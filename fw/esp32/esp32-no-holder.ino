@@ -33,6 +33,8 @@ String T_EVENT    = String("smartparcel/")+DEV_ID+"/event";
 String T_PHSTAT   = String("smartparcel/")+DEV_ID+"/photo/status";
 String T_CTRL     = String("smartparcel/")+DEV_ID+"/control";
 String T_CTRLACK  = String("smartparcel/")+DEV_ID+"/control/ack";
+String T_SETTINGS_SET = String("smartparcel/")+DEV_ID+"/settings/set";
+String T_SETTINGS_ACK = String("smartparcel/")+DEV_ID+"/settings/ack";
 String T_BUZZER_CFG = String("smartparcel/")+DEV_ID+"/buzzer/config";
 
 // Backend HTTP
@@ -677,6 +679,38 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
     }
     return;
   }
+  
+  // Handle settings updates
+  if (top == T_SETTINGS_SET){
+    Serial.printf("[SETTINGS] Received update: %s\n", s.c_str());
+    
+    // Parse ultra.min (threshold)
+    int ultraMinIdx = s.indexOf("\"min\"");
+    if (ultraMinIdx >= 0) {
+      int colonIdx = s.indexOf(':', ultraMinIdx);
+      if (colonIdx >= 0) {
+        int endIdx = colonIdx + 1;
+        while (endIdx < (int)s.length() && (s[endIdx] == ' ' || s[endIdx] == '\t')) endIdx++;
+        int numStart = endIdx;
+        while (endIdx < (int)s.length() && (isdigit(s[endIdx]) || s[endIdx] == '.')) endIdx++;
+        if (endIdx > numStart) {
+          float newMin = s.substring(numStart, endIdx).toFloat();
+          if (newMin >= 5.0f && newMin <= 50.0f) {
+            S.minCm = newMin;
+            S.maxCm = newMin; // Use same value for detection threshold
+            Serial.printf("[SETTINGS] ✅ Threshold updated: %.1f cm\n", S.minCm);
+            
+            String ackMsg = String("{\"ok\":true,\"threshold\":") + String(S.minCm, 1) + "}";
+            mqtt.publish(T_SETTINGS_ACK.c_str(), ackMsg.c_str(), false);
+          } else {
+            Serial.printf("[SETTINGS] ⚠️ Invalid threshold: %.1f (must be 5-50)\n", newMin);
+            mqtt.publish(T_SETTINGS_ACK.c_str(), "{\"ok\":false,\"error\":\"invalid_range\"}", false);
+          }
+        }
+      }
+    }
+    return;
+  }
 }
 
 // ===================== MQTT =====================
@@ -690,6 +724,7 @@ void ensureMQTT(){
   }
   mqtt.publish(T_STATUS.c_str(), "online", true);
   mqtt.subscribe(T_CTRL.c_str());
+  mqtt.subscribe(T_SETTINGS_SET.c_str());
   // Publish initial buzzer config
   String buzzerCfg = String("{\"enabled\":") + (S.buzzerEnabled ? "true" : "false") + "}";
   mqtt.publish(T_BUZZER_CFG.c_str(), buzzerCfg.c_str(), true);

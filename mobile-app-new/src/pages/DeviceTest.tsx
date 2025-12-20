@@ -181,7 +181,7 @@ export default function DeviceTest() {
                         <div className="grid grid-cols-3 gap-2">
                             <Button
                                 variant="secondary"
-                                size="sm"
+                                className="text-xs py-2 h-auto"
                                 onClick={() => handleFlashPulse(500)}
                                 disabled={!deviceStatus?.isOnline || isLoading}
                             >
@@ -190,7 +190,7 @@ export default function DeviceTest() {
                             </Button>
                             <Button
                                 variant="secondary"
-                                size="sm"
+                                className="text-xs py-2 h-auto"
                                 onClick={() => handleFlashPulse(1000)}
                                 disabled={!deviceStatus?.isOnline || isLoading}
                             >
@@ -199,7 +199,7 @@ export default function DeviceTest() {
                             </Button>
                             <Button
                                 variant={isFlashOn ? 'primary' : 'secondary'}
-                                size="sm"
+                                className="text-xs py-2 h-auto"
                                 onClick={handleFlashToggle}
                                 disabled={!deviceStatus?.isOnline || isLoading}
                             >
