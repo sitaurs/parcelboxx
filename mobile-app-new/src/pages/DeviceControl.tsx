@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
     Lock, Unlock, Camera, Zap, Volume2,
-    AlertTriangle, Power, Activity, Signal
+    AlertTriangle, Power, Activity, Signal, VolumeX
 } from 'lucide-react';
 import { deviceAPI } from '../services/api';
 import { useToast } from '../hooks/useToast';
@@ -36,6 +36,7 @@ export default function DeviceControl() {
 
     const [buzzerDuration, setBuzzerDuration] = useState('5');
     const [isFlashOn, setIsFlashOn] = useState(false);
+    const [isBuzzerEnabled, setIsBuzzerEnabled] = useState(true); // NEW: Buzzer enable state
 
     // Helper for offline check
     const checkOnline = () => {
@@ -127,6 +128,39 @@ export default function DeviceControl() {
             setIsLoading(false);
         }
     };
+
+    // NEW: Toggle buzzer enable/disable
+    const handleBuzzerToggle = async (enable: boolean) => {
+        if (!checkOnline()) return;
+        setIsLoading(true);
+        try {
+            await deviceAPI.controlBuzzer(enable ? 'enable' : 'disable');
+            setIsBuzzerEnabled(enable);
+            success(`Buzzer ${enable ? 'DIAKTIFKAN' : 'DINONAKTIFKAN'}`);
+        } catch (err: any) {
+            error(err.message || 'Gagal mengubah status buzzer');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // Load initial buzzer state from device
+    useEffect(() => {
+        const loadBuzzerStatus = async () => {
+            try {
+                // Assume diagnostic returns buzzerEnabled status
+                const status = await deviceAPI.diagnostic();
+                if (status.data?.buzzerEnabled !== undefined) {
+                    setIsBuzzerEnabled(status.data.buzzerEnabled);
+                }
+            } catch (err) {
+                // Ignore error, use default
+            }
+        };
+        if (deviceStatus?.isOnline) {
+            loadBuzzerStatus();
+        }
+    }, [deviceStatus?.isOnline]);
 
     return (
         <div className="page-container space-y-6">
@@ -259,47 +293,84 @@ export default function DeviceControl() {
                 <div className="grid grid-cols-2 gap-2 mb-2">
                     <Button
                         variant="secondary"
-                        className="text-xs"
-                        onClick={() => handleFlash('pulse', 500)}
-                        disabled={!deviceStatus?.isOnline || isLoading}
-                    >
-                        Flash 500ms
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        className="text-xs"
-                        onClick={() => handleFlash('pulse', 1000)}
-                        disabled={!deviceStatus?.isOnline || isLoading}
-                    >
-                        Flash 1s
-                    </Button>
-                    <Button
-                        variant="secondary"
-                        className="text-xs"
-                        onClick={() => handleFlash('pulse', 2000)}
-                        disabled={!deviceStatus?.isOnline || isLoading}
-                    >
-                        Flash 2s
-                    </Button>
-                    <Button
-                        variant={isFlashOn ? 'danger' : 'primary'}
-                        className="text-xs"
-                        onClick={() => handleFlash(isFlashOn ? 'off' : 'on')}
-                        disabled={!deviceStatus?.isOnline || isLoading}
-                    >
-                        <Zap className="w-3 h-3 mr-1" /> {isFlashOn ? 'Matikan' : 'Nyalakan'}
-                    </Button>
-                </div>
-            </Card>
-
             {/* 7. Buzzer Control */}
             <Card>
-                <h3 className="font-bold text-gray-900 mb-4">Buzzer Alarm</h3>
+                <div className="flex items-center justify-between mb-4">
+                    <h3 className="font-bold text-gray-900">Buzzer Alarm</h3>
+                    <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-gray-700">
+                            {isBuzzerEnabled ? 'ON' : 'OFF'}
+                        </span>
+                        <div className={`w-3 h-3 rounded-full ${isBuzzerEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                    </div>
+                </div>
+
+                {/* NEW: Enable/Disable Toggle */}
+                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                    <div className="flex items-start gap-3">
+                        <div className="flex-1">
+                            <p className="text-xs font-medium text-gray-700 mb-1">Mode Notifikasi</p>
+                            <p className="text-xs text-gray-500">
+                                {isBuzzerEnabled 
+                                    ? 'Buzzer akan bunyi saat ada paket' 
+                                    : 'Hanya notifikasi WhatsApp (buzzer mati)'}
+                            </p>
+                        </div>
+                        <button
+                            onClick={() => handleBuzzerToggle(!isBuzzerEnabled)}
+                            disabled={!deviceStatus?.isOnline || isLoading}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                                isBuzzerEnabled ? 'bg-green-500' : 'bg-gray-300'
+                            } ${!deviceStatus?.isOnline || isLoading ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
+                            <span
+                                className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                                    isBuzzerEnabled ? 'translate-x-6' : 'translate-x-1'
+                                }`}
+                            />
+                        </button>
+                    </div>
+                </div>
+
+                {/* Manual Test Controls */}
                 <div className="space-y-4">
                     <div>
-                        <label className="text-xs font-medium text-gray-700 mb-1 block">Durasi (detik)</label>
+                        <label className="text-xs font-medium text-gray-700 mb-1 block">Test Manual (durasi detik)</label>
                         <div className="flex gap-2">
                             {[1, 2, 5].map(sec => (
+                                <button
+                                    key={sec}
+                                    onClick={() => setBuzzerDuration(sec.toString())}
+                                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${buzzerDuration === sec.toString()
+                                            ? 'bg-brand-100 text-brand-700 border border-brand-200'
+                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                        }`}
+                                >
+                                    {sec}s
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <Button
+                            variant="primary"
+                            onClick={() => handleBuzzer('start')}
+                            disabled={!deviceStatus?.isOnline || isLoading}
+                            isLoading={isLoading}
+                        >
+                            <Volume2 className="w-4 h-4 mr-2" /> Test
+                        </Button>
+                        <Button
+                            variant="danger"
+                            onClick={() => handleBuzzer('stop')}
+                            disabled={!deviceStatus?.isOnline || isLoading}
+                            isLoading={isLoading}
+                        >
+                            <VolumeX className="w-4 h-4 mr-2" /> Stop
+                        </Button>
+                    </div>
+                </div>
+            </Card>         {[1, 2, 5].map(sec => (
                                 <button
                                     key={sec}
                                     onClick={() => setBuzzerDuration(sec.toString())}

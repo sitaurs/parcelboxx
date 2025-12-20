@@ -144,7 +144,7 @@ export const deviceAPI = {
     controlHolder: (action: 'pulse' | 'open' | 'close', ms?: number) =>
         request('/device/control/holder', { method: 'POST', body: JSON.stringify({ action, ms }) }),
 
-    controlBuzzer: (action: 'start' | 'stop', ms?: number) =>
+    controlBuzzer: (action: 'start' | 'stop' | 'enable' | 'disable', ms?: number) =>
         request('/device/control/buzzer', { method: 'POST', body: JSON.stringify({ action, ms }) }),
 
     controlFlash: (state: 'on' | 'off' | 'pulse', ms?: number) =>

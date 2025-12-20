@@ -317,13 +317,17 @@ router.post('/control/flash', authMiddleware, (req, res) => {
  */
 router.post('/control/buzzer', authMiddleware, (req, res) => {
   try {
-    const { action, ms } = req.body; // action: 'start' or 'stop'
+    const { action, ms } = req.body; // action: 'start', 'stop', 'enable', 'disable'
     
     let command;
     if (action === 'stop') {
-      command = { buzzer: 'stop' };
+      command = { buzzer: { stop: true } };
     } else if (action === 'start') {
-      command = { buzzer: 'start', ms: ms || 5000 };
+      command = { buzzer: { ms: ms || 5000 } };
+    } else if (action === 'enable') {
+      command = { buzzer: { enable: true } };
+    } else if (action === 'disable') {
+      command = { buzzer: { disable: true } };
     } else {
       return res.status(400).json({ error: 'Invalid action' });
     }

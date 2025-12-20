@@ -1,11 +1,12 @@
-// ===== ESP32-CAM SmartParcel - NO HOLDER VERSION =====
-// Hardware: ESP32-CAM AI-Thinker + HC-SR04 + Buzzer
+// ===== ESP32-CAM SmartParcel - WITH HOLDER VERSION =====
+// Hardware: ESP32-CAM AI-Thinker + HC-SR04 + Solenoid + Buzzer
 // Features:
 // - Ultrasonic detection (HC-SR04)
 // - Instant photo capture on detection
 // - Photo upload with retry (until success)
+// - Solenoid holder release (SHORT PULSE 0.5s only!)
 // - Buzzer notification
-// - NO SOLENOID HOLDER
+// - WITH SOLENOID HOLDER + XL6003 20V boost converter
 
 #include <WiFi.h>
 #include <WiFiManager.h>
@@ -33,7 +34,7 @@ String T_EVENT    = String("smartparcel/")+DEV_ID+"/event";
 String T_PHSTAT   = String("smartparcel/")+DEV_ID+"/photo/status";
 String T_CTRL     = String("smartparcel/")+DEV_ID+"/control";
 String T_CTRLACK  = String("smartparcel/")+DEV_ID+"/control/ack";
-String T_BUZZER_CFG = String("smartparcel/")+DEV_ID+"/buzzer/config";
+String T_HOLDER   = String("smartparcel/")+DEV_ID+"/holder/release";
 
 // Backend HTTP
 const char* SERVER_HOST = "3.27.11.106";
@@ -46,6 +47,8 @@ const char* API_BEARER  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXZpY2VJZCI6
 // HC-SR04
 #define PIN_TRIG   14
 #define PIN_ECHO    2   // WAJIB divider 5V->3V3
+// Solenoid Holder (XL6003 20V boost converter)
+#define PIN_SOLENOID 13 // Relay untuk solenoid holder
 // Buzzer
 #define PIN_BUZZER 15   // Relay/MOSFET untuk buzzer
 // Flash LED
@@ -77,10 +80,10 @@ const bool RELAY_ACTIVE_LOW = true;
 struct Settings {
   float     minCm   = 5.0f;   // Min detection range
   float     maxCm   = 27.0f;  // Max detection range
+  uint32_t  solenoidMs = 500; // Solenoid pulse duration (SHORT PULSE - XL6003 20V)
   uint32_t  buzzerMs= 60000;  // Buzzer duration
   uint16_t  buzzOn  = 500;
   uint16_t  buzzOff = 300;
-  bool      buzzerEnabled = true; // Buzzer enable/disable flag
 } S;
 
 bool busy = false;
@@ -368,7 +371,7 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
     String meta = String("{\"deviceId\":\"")+DEV_ID+
                   "\",\"reason\":\""+String(reason)+
                   "\",\"distanceCm\":"+(isnan(cm)?String("null"):String(cm,1))+
-                  ",\"firmware\":\"esp32cam-no-holder\",\"try\":"+String(attempt)+"}";
+                  ",\"firmware\":\"esp32cam-with-holder\",\"try\":"+String(attempt)+"}";
 
     Serial.printf("[PHOTO] Uploading to backend (attempt %d)...\n", attempt);
     UploadResult ur = httpUploadMultipart(meta, fb->buf, fb->len);
@@ -420,6 +423,25 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
   return false;
 }
 
+// ===================== SOLENOID HOLDER CONTROL =====================
+void solenoidPulse(uint32_t ms){
+  Serial.printf("[SOLENOID] Activating for %d ms (SHORT PULSE - XL6003 20V)...\n", ms);
+  Serial.println("[SOLENOID] ⚠️ WARNING: Do NOT hold longer than 1 second to prevent overheating!");
+  
+  relayWrite(PIN_SOLENOID, true);  // Activate solenoid
+  
+  String holderEvent = String("{\"released\":true,\"ms\":") + ms + 
+    ",\"timestamp\":\"" + String(millis()) + "\",\"voltage\":\"20V\"}";
+  mqtt.publish(T_HOLDER.c_str(), holderEvent.c_str(), false);
+  
+  delay(ms);  // Hold for specified duration
+  
+  relayWrite(PIN_SOLENOID, false); // Deactivate solenoid
+  
+  Serial.printf("[SOLENOID] ✅ Pulse complete (%d ms)\n", ms);
+  Serial.println("[SOLENOID] Holder released - package dropped!");
+}
+
 // ===================== BUZZER =====================
 void buzzerPatternMs(uint32_t totalMs){
   stopBuzz = false;
@@ -448,7 +470,7 @@ void buzzerPatternMs(uint32_t totalMs){
   Serial.println("[BUZZER] ✅ Notification complete!");
 }
 
-// ===================== DETECTION PIPELINE (NO HOLDER) =====================
+// ===================== DETECTION PIPELINE (WITH HOLDER) =====================
 void runDetectionPipeline(float cm){
   busy = true;
   stopAll=false; 
@@ -456,12 +478,12 @@ void runDetectionPipeline(float cm){
 
   Serial.println("");
   Serial.println("╔════════════════════════════════════════════╗");
-  Serial.println("║   📦 PACKAGE DETECTED - NO HOLDER MODE    ║");
+  Serial.println("║   📦 PACKAGE DETECTED - WITH HOLDER MODE  ║");
   Serial.println("╚════════════════════════════════════════════╝");
   Serial.printf("   Distance: %.1f cm\n", cm);
   Serial.println("");
   
-  mqtt.publish(T_EVENT.c_str(), String("{\"type\":\"detection\",\"cm\":"+String(cm,1)+",\"mode\":\"no_holder\"}").c_str(), false);
+  mqtt.publish(T_EVENT.c_str(), String("{\"type\":\"detection\",\"cm\":"+String(cm,1)+",\"mode\":\"with_holder\"}").c_str(), false);
   
   // STEP 1: FOTO LANGSUNG (First action after detection)
   Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -486,19 +508,38 @@ void runDetectionPipeline(float cm){
   }
   
   Serial.println("");
-  // STEP 2: BUZZER NOTIFICATION (if enabled)
-  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
-  Serial.println("[STEP 2] 🔔 BUZZER NOTIFICATION...");
-  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   
-  if (S.buzzerEnabled) {
-    Serial.println("[BUZZER] Buzzer is ENABLED - will activate");
-    mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"buzzer_notification\",\"ms\":"+String(S.buzzerMs)+",\"enabled\":true}").c_str(), false);
-    buzzerPatternMs(S.buzzerMs);
-  } else {
-    Serial.println("[BUZZER] Buzzer is DISABLED - skipping buzzer (notification only)");
-    mqtt.publish(T_EVENT.c_str(), "{\"step\":\"buzzer_skipped\",\"reason\":\"disabled\"}", false);
-  }
+  // STEP 2: DELAY 7 SECONDS (tunggu paket stabil di holder)
+  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  Serial.println("[STEP 2] ⏳ WAITING 7 SECONDS...");
+  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  Serial.println("[WAIT] Allowing package to settle in holder...");
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"wait_before_release\",\"ms\":7000}", false);
+  delay(7000);
+  Serial.println("[WAIT] ✅ Wait complete!");
+  
+  Serial.println("");
+  
+  // STEP 3: SOLENOID RELEASE (SHORT PULSE ONLY - XL6003 20V)
+  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  Serial.println("[STEP 3] 🔓 RELEASING HOLDER...");
+  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"solenoid_release\",\"ms\":"+String(S.solenoidMs)+"}").c_str(), false);
+  
+  solenoidPulse(S.solenoidMs); // 0.5 second pulse only!
+  
+  Serial.println("[STEP 3] ✅ Holder released - package dropped!");
+  mqtt.publish(T_EVENT.c_str(), "{\"step\":\"solenoid_complete\"}", false);
+  
+  Serial.println("");
+  
+  // STEP 4: BUZZER NOTIFICATION
+  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  Serial.println("[STEP 4] 🔔 BUZZER NOTIFICATION...");
+  Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"buzzer_notification\",\"ms\":"+String(S.buzzerMs)+"}").c_str(), false);
+  
+  buzzerPatternMs(S.buzzerMs);
   
   Serial.println("");
   Serial.println("╔════════════════════════════════════════════╗");
@@ -507,12 +548,9 @@ void runDetectionPipeline(float cm){
   Serial.println("   ✓ Photo captured & uploaded");
   Serial.println("   ✓ Notification sent to WhatsApp");
   Serial.println("   ✓ Photo saved in gallery");
-  if (S.buzzerEnabled) {
-    Serial.println("   ✓ Buzzer notification done");
-  } else {
-    Serial.println("   ⊗ Buzzer skipped (disabled)");
-  }
-  Serial.println("");✓ Buzzer notification done");
+  Serial.println("   ✓ Waited 7 seconds");
+  Serial.println("   ✓ Holder released (0.5s pulse)");
+  Serial.println("   ✓ Buzzer notification done");
   Serial.println("");
   
   busy = false;
@@ -536,41 +574,19 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
     if (s.indexOf("\"capture\"")>=0 && s.indexOf("true")>=0){
       bool ok = captureAndUploadUntilSuccess("manual", lastCm);
       ack(String("{\"ok\":")+(ok?"true":"false")+",\"action\":\"capture\"}");
+      return;
+    }
+    if (s.indexOf("\"flash\"")>=0){
+      if (s.indexOf("\"on\"")>=0){ flashOn(true);  ack("{\"ok\":true,\"action\":\"flash\",\"state\":\"on\"}"); return; }
+      if (s.indexOf("\"off\"")>=0){ flashOn(false); ack("{\"ok\":true,\"action\":\"flash\",\"state\":\"off\"}"); return; }
+      int pms = s.indexOf("\"ms\"");
+      int ms = 150; if (pms>=0) ms = s.substring(s.indexOf(':',pms)+1).toInt();
+      flashOn(true); delay(ms); flashOn(false);
+      ack(String("{\"ok\":true,\"action\":\"flash\",\"detail\":\"pulse_")+ms+"ms\"}");
+      return;
+    }
     if (s.indexOf("\"buzzer\"")>=0){
-      // Stop buzzer
       if (s.indexOf("\"stop\"")>=0){ 
-        stopBuzz = true; 
-        relayWrite(PIN_BUZZER,false); 
-        ack("{\"ok\":true,\"action\":\"buzzer_stop\",\"state\":\"stopped\"}"); 
-        Serial.println("[BUZZER] Stopped by user command");
-        return; 
-      }
-      // Enable buzzer
-      if (s.indexOf("\"enable\"")>=0 || s.indexOf("\"on\"")>=0){ 
-        S.buzzerEnabled = true;
-        mqtt.publish(T_BUZZER_CFG.c_str(), "{\"enabled\":true}", true);
-        ack("{\"ok\":true,\"action\":\"buzzer_enable\",\"enabled\":true}");
-        Serial.println("[BUZZER] ENABLED - will sound on detection");
-        return; 
-      }
-      // Disable buzzer
-      if (s.indexOf("\"disable\"")>=0 || s.indexOf("\"off\"")>=0){ 
-        S.buzzerEnabled = false;
-        stopBuzz = true; // Stop current buzzer if running
-        relayWrite(PIN_BUZZER,false);
-        mqtt.publish(T_BUZZER_CFG.c_str(), "{\"enabled\":false}", true);
-        ack("{\"ok\":true,\"action\":\"buzzer_disable\",\"enabled\":false}");
-        Serial.println("[BUZZER] DISABLED - notification only mode");
-        return; 
-      String diagResult = String("{\"ok\":true,\"action\":\"diagnostic\",") +
-        "\"camera\":\"" + camStatus + "\"," +
-        "\"ultrasonic\":\"" + ultraStatus + "\"," +
-        "\"distance\":" + (isnan(testCm) ? "null" : String(testCm,1)) + "," +
-        "\"wifi\":\"" + (WiFi.status()==WL_CONNECTED ? "OK":"FAIL") + "\"," +
-        "\"mqtt\":\"" + (mqtt.connected() ? "OK":"FAIL") + "\"," +
-        "\"mode\":\"no_holder\"," +
-        "\"buzzerEnabled\":" + (S.buzzerEnabled ? "true":"false") + "," +
-        "\"freeHeap\":" + String(ESP.getFreeHeap()) + "}";
         stopBuzz = true; 
         relayWrite(PIN_BUZZER,false); 
         ack("{\"ok\":true,\"action\":\"buzzer\",\"state\":\"stopping\"}"); 
@@ -582,17 +598,30 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       buzzerPatternMs(ms);
       return;
     }
+    // NEW: Solenoid control via MQTT
+    if (s.indexOf("\"solenoid\"")>=0 || s.indexOf("\"holder\"")>=0){
+      int pms = s.indexOf("\"ms\"");
+      uint32_t ms = (pms>=0) ? (uint32_t)s.substring(s.indexOf(':',pms)+1).toInt() : S.solenoidMs;
+      
+      // Safety check - max 1 second to prevent damage
+      if (ms > 1000) {
+        Serial.println("[SOLENOID] ⚠️ WARNING: Duration too long! Limiting to 1000ms for safety");
+        ms = 1000;
+      }
+      
+      ack(String("{\"ok\":true,\"action\":\"solenoid_release\",\"ms\":")+ms+"}");
+      solenoidPulse(ms);
+      return;
+    }
     if (s.indexOf("\"diagnostic\"")>=0 || s.indexOf("\"diag\"")>=0){
       Serial.println("[DIAG] Running diagnostic...");
       
       float testCm = ultraOne();
       String ultraStatus = isnan(testCm) ? "FAIL" : "OK";
       
-  mqtt.publish(T_STATUS.c_str(), "online", true);
-  mqtt.subscribe(T_CTRL.c_str());
-  // Publish initial buzzer config
-  mqtt.publish(T_BUZZER_CFG.c_str(), String("{\"enabled\":"+(S.buzzerEnabled?"true":"false")+"}").c_str(), true);
-}     flashOn(false);
+      flashOn(true); delay(50);
+      camera_fb_t* testFb = esp_camera_fb_get();
+      flashOn(false);
       String camStatus = testFb ? "OK" : "FAIL";
       if (testFb) esp_camera_fb_return(testFb);
       
@@ -602,7 +631,8 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
         "\"distance\":" + (isnan(testCm) ? "null" : String(testCm,1)) + "," +
         "\"wifi\":\"" + (WiFi.status()==WL_CONNECTED ? "OK":"FAIL") + "\"," +
         "\"mqtt\":\"" + (mqtt.connected() ? "OK":"FAIL") + "\"," +
-        "\"mode\":\"no_holder\"," +
+        "\"mode\":\"with_holder\"," +
+        "\"solenoidMs\":" + String(S.solenoidMs) + "," +
         "\"freeHeap\":" + String(ESP.getFreeHeap()) + "}";
       
       ack(diagResult);
@@ -712,19 +742,20 @@ void setup(){
   
   Serial.println("");
   Serial.println("════════════════════════════════════════════");
-  Serial.println("   ESP32-CAM SmartParcel - NO HOLDER MODE   ");
+  Serial.println("   ESP32-CAM SmartParcel - WITH HOLDER      ");
   Serial.println("════════════════════════════════════════════");
-  Serial.println("   Firmware: esp32cam-no-holder v1.2        ");
+  Serial.println("   Firmware: esp32cam-with-holder v1.0      ");
   Serial.println("   Features:                                ");
   Serial.println("   ✓ HC-SR04 Detection                      ");
   Serial.println("   ✓ Instant Photo Capture                  ");
-  Serial.println("   ✓ VGA Quality (640x480) - No PSRAM       ");
-  Serial.println("   ✓ Optimized for Clone Modules            ");
+  Serial.println("   ✓ VGA Quality (640x480)                  ");
+  Serial.println("   ✓ Solenoid Holder (SHORT PULSE 0.5s)     ");
+  Serial.println("   ✓ XL6003 20V Boost Converter             ");
   Serial.println("   ✓ Retry Upload Until Success             ");
   Serial.println("   ✓ WhatsApp Notification                  ");
   Serial.println("   ✓ Gallery Save                           ");
   Serial.println("   ✓ Buzzer Alert                           ");
-  Serial.println("   ✗ NO Solenoid Holder                     ");
+  Serial.println("   ✓ MQTT Remote Control                    ");
   Serial.println("════════════════════════════════════════════");
   Serial.println("");
   Serial.println("[BOOT] Starting initialization...");
@@ -733,12 +764,16 @@ void setup(){
   Serial.println("[BOOT] Initializing GPIO...");
   pinMode(PIN_TRIG, OUTPUT); digitalWrite(PIN_TRIG, LOW);
   pinMode(PIN_ECHO, INPUT);
+  pinMode(PIN_SOLENOID, OUTPUT); // Solenoid holder
   pinMode(PIN_BUZZER, OUTPUT);
+  relayWrite(PIN_SOLENOID, false); // Ensure holder is locked initially
   relayWrite(PIN_BUZZER, false);
   pinMode(PIN_FLASH, OUTPUT); digitalWrite(PIN_FLASH, LOW);
   Serial.println("[BOOT] GPIO OK");
+  Serial.printf("[BOOT] Solenoid pulse duration: %d ms (SHORT PULSE ONLY!)\n", S.solenoidMs);
+  Serial.println("[BOOT] ⚠️ WARNING: XL6003 20V - Do NOT hold solenoid longer than 1 second!");
 
-  // Check PSRAM availability (optional for AI-Thinker)
+  // Check PSRAM availability
   Serial.println("[BOOT] Checking PSRAM...");
   bool hasPsram = psramFound();
   if (!hasPsram) {
@@ -791,17 +826,11 @@ void setup(){
   Serial.println("[BOOT] Testing HC-SR04...");
   delay(500);
   float testCm = ultraOne();
-  Serial.printf("   Detection Range: %.1f - %.1f cm\n", S.minCm, S.maxCm);
-  Serial.printf("   Cooldown: %d seconds\n", DETECTION_COOLDOWN_MS/1000);
-  Serial.printf("   Buzzer Duration: %d seconds\n", S.buzzerMs/1000);
-  Serial.printf("   Buzzer Status: %s\n", S.buzzerEnabled ? "ENABLED" : "DISABLED");
-  Serial.println("════════════════════════════════════════════");
-  Serial.println("   MQTT Buzzer Commands:                    ");
-  Serial.println("   - {\"buzzer\":{\"enable\":true}}         ");
-  Serial.println("   - {\"buzzer\":{\"disable\":true}}        ");
-  Serial.println("   - {\"buzzer\":{\"stop\":true}}           ");
-  Serial.println("════════════════════════════════════════════");
-  Serial.println("");WARN] Check connections:");
+  if (!isnan(testCm)) {
+    Serial.printf("[BOOT] HC-SR04 OK (%.1f cm)\n", testCm);
+  } else {
+    Serial.println("[WARN] HC-SR04 not responding!");
+    Serial.println("[WARN] Check connections:");
     Serial.println("  - TRIG -> GPIO 14");
     Serial.println("  - ECHO -> GPIO 2 (via 5V->3.3V divider!)");
     Serial.println("  - VCC  -> 5V");
@@ -819,11 +848,19 @@ void setup(){
   
   Serial.println("");
   Serial.println("════════════════════════════════════════════");
-  Serial.println("   ✅ SYSTEM READY - NO HOLDER MODE         ");
+  Serial.println("   ✅ SYSTEM READY - WITH HOLDER MODE       ");
   Serial.println("════════════════════════════════════════════");
   Serial.printf("   Detection Range: %.1f - %.1f cm\n", S.minCm, S.maxCm);
   Serial.printf("   Cooldown: %d seconds\n", DETECTION_COOLDOWN_MS/1000);
+  Serial.printf("   Solenoid Pulse: %d ms (SHORT PULSE!)\n", S.solenoidMs);
   Serial.printf("   Buzzer Duration: %d seconds\n", S.buzzerMs/1000);
+  Serial.println("════════════════════════════════════════════");
+  Serial.println("   MQTT Control Commands Available:         ");
+  Serial.println("   - {\"capture\":true} = Take photo         ");
+  Serial.println("   - {\"solenoid\":{\"ms\":500}} = Release   ");
+  Serial.println("   - {\"buzzer\":{\"ms\":5000}} = Buzzer     ");
+  Serial.println("   - {\"diagnostic\":true} = System check   ");
+  Serial.println("   - {\"stop\":true} = Emergency stop       ");
   Serial.println("════════════════════════════════════════════");
   Serial.println("");
 }
