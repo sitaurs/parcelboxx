@@ -1,16 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sliders, Activity, Radio, Sun, Moon, ChevronRight, KeyRound } from 'lucide-react';
+import { Sliders, Activity, Sun, Moon, ChevronRight, KeyRound } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import Card from '../components/Card';
-import DetectionModeModal from '../components/modals/DetectionModeModal';
 import ChangeDoorPinModal from '../components/modals/ChangeDoorPinModal';
 
 export default function Settings() {
     const navigate = useNavigate();
     const { isDarkMode, toggleDarkMode } = useStore();
 
-    const [showDetectionModeModal, setShowDetectionModeModal] = useState(false);
     const [showChangeDoorPinModal, setShowChangeDoorPinModal] = useState(false);
 
     const SettingItem = ({ icon: Icon, label, onClick, color = 'text-gray-600' }: any) => (
@@ -41,12 +39,6 @@ export default function Settings() {
                         label="Device Control"
                         onClick={() => navigate('/device-control')}
                         color="text-blue-600"
-                    />
-                    <SettingItem
-                        icon={Radio}
-                        label="Detection Mode"
-                        onClick={() => setShowDetectionModeModal(true)}
-                        color="text-green-600"
                     />
                     <SettingItem
                         icon={Activity}
@@ -107,10 +99,6 @@ export default function Settings() {
             </p>
 
             {/* Modals */}
-            <DetectionModeModal
-                isOpen={showDetectionModeModal}
-                onClose={() => setShowDetectionModeModal(false)}
-            />
             <ChangeDoorPinModal
                 isOpen={showChangeDoorPinModal}
                 onClose={() => setShowChangeDoorPinModal(false)}
