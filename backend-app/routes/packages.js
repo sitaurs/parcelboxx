@@ -6,10 +6,18 @@ import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { readDB, appendDB, writeDB } from '../utils/db.js';
 import { authMiddleware, deviceTokenMiddleware } from '../middleware/auth.js';
+import GowaService from '../services/gowa.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const STORAGE_PATH = path.join(__dirname, '..', 'storage');
+
+// Initialize GOWA Service for WhatsApp notifications
+const gowa = new GowaService({
+  baseUrl: process.env.GOWA_API_URL,
+  username: process.env.GOWA_USERNAME,
+  password: process.env.GOWA_PASSWORD
+});
 
 const router = express.Router();
 
@@ -46,18 +54,23 @@ router.post('/', deviceTokenMiddleware, upload.single('photo'), async (req, res)
     const timestamp = new Date().toISOString();
     const filename = `package_${Date.now()}`;
     
-    // Save original photo
+    // Save original photo (DIRECT write - skip Sharp to avoid JPEG parsing errors)
     const photoPath = path.join(STORAGE_PATH, `${filename}.jpg`);
-    await sharp(req.file.buffer)
-      .jpeg({ quality: 85 })
-      .toFile(photoPath);
+    fs.writeFileSync(photoPath, req.file.buffer);
     
-    // Generate thumbnail
+    // Generate thumbnail (with error handling - tidak gagal jika Sharp error)
     const thumbPath = path.join(STORAGE_PATH, `${filename}_thumb.jpg`);
-    await sharp(req.file.buffer)
-      .resize(300, 300, { fit: 'cover' })
-      .jpeg({ quality: 70 })
-      .toFile(thumbPath);
+    try {
+      await sharp(req.file.buffer)
+        .resize(300, 300, { fit: 'cover' })
+        .jpeg({ quality: 70 })
+        .toFile(thumbPath);
+      console.log(`✅ Thumbnail generated: ${filename}_thumb.jpg`);
+    } catch (thumbError) {
+      console.warn(`⚠️ Thumbnail generation failed (using original): ${thumbError.message}`);
+      // Fallback: copy original as thumbnail if Sharp fails
+      fs.writeFileSync(thumbPath, req.file.buffer);
+    }
     
     const packages = readDB('packages');
     const packageId = packages.length + 1;
@@ -78,6 +91,12 @@ router.post('/', deviceTokenMiddleware, upload.single('photo'), async (req, res)
     
     appendDB('packages', packageData);
     
+    // ✅ SEND WHATSAPP NOTIFICATION IMMEDIATELY (tidak tunggu MQTT!)
+    sendWhatsAppNotification(packageData).catch(err => {
+      console.error('❌ WhatsApp notification error:', err.message);
+      // Don't fail the request if notification fails
+    });
+    
     res.status(201).json({
       success: true,
       id: packageId,
@@ -91,6 +110,64 @@ router.post('/', deviceTokenMiddleware, upload.single('photo'), async (req, res)
     res.status(500).json({ error: 'Failed to upload package' });
   }
 });
+
+/**
+ * Send WhatsApp notification for new package
+ */
+async function sendWhatsAppNotification(packageData) {
+  try {
+    // Get WhatsApp configuration
+    const config = readDB('whatsappConfig');
+    
+    // Check if WhatsApp is paired and not blocked
+    if (!config.isPaired || config.isBlocked) {
+      console.log('⚠️ WhatsApp not configured or blocked. Skipping notification.');
+      return;
+    }
+
+    // Get recipients from config
+    const recipients = config.recipients || [];
+    if (recipients.length === 0) {
+      console.log('⚠️ No WhatsApp recipients configured.');
+      return;
+    }
+
+    // Prepare message
+    const message = `📦 *SmartParcel - Paket Diterima*\n\n` +
+      `⏰ Waktu: ${new Date(packageData.timestamp).toLocaleString('id-ID')}\n` +
+      `📍 Device: ${packageData.deviceId}\n` +
+      `📏 Jarak: ${packageData.distanceCm ? packageData.distanceCm.toFixed(1) + ' cm' : 'N/A'}\n\n` +
+      `Paket baru telah diterima dan tersimpan dengan aman.\n` +
+      `Silakan ambil paket Anda.`;
+    
+    // Get full photo URL
+    const baseUrl = process.env.BASE_URL || `http://localhost:${process.env.PORT || 9090}`;
+    const photoUrl = packageData.photoUrl.startsWith('http') 
+      ? packageData.photoUrl 
+      : `${baseUrl}${packageData.photoUrl}`;
+
+    console.log(`📤 Sending WhatsApp notification to ${recipients.length} recipient(s)...`);
+    
+    // Send to all recipients
+    for (const recipient of recipients) {
+      try {
+        const result = await gowa.sendImage(recipient, message, photoUrl, true);
+        
+        if (result.success) {
+          console.log(`✅ WhatsApp sent to ${recipient}: ${result.messageId}`);
+        } else {
+          console.error(`❌ Failed to send WhatsApp to ${recipient}:`, result.error);
+        }
+      } catch (error) {
+        console.error(`❌ Error sending to ${recipient}:`, error.message);
+      }
+    }
+    
+  } catch (error) {
+    console.error('❌ WhatsApp notification error:', error.message);
+    throw error;
+  }
+}
 
 /**
  * GET /api/packages
