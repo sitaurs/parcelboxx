@@ -624,7 +624,8 @@ void ensureMQTT(){
   mqtt.publish(T_STATUS.c_str(), "online", true);
   mqtt.subscribe(T_CTRL.c_str());
   // Publish initial buzzer config
-  mqtt.publish(T_BUZZER_CFG.c_str(), String("{\"enabled\":"+(S.buzzerEnabled?"true":"false")+"}").c_str(), true);
+  String buzzerCfg = String("{\"enabled\":") + (S.buzzerEnabled ? "true" : "false") + "}";
+  mqtt.publish(T_BUZZER_CFG.c_str(), buzzerCfg.c_str(), true);
 }
 
 // ===================== CAMERA =====================
