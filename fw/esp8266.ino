@@ -19,7 +19,7 @@
 const char* ssid = "ether-20-20-20-1";
 const char* password = "asdasdasd";
 const char* mqtt_server = "3.27.11.106";  // MQTT Broker
-const int mqtt_port = 1884;
+const int mqtt_port = 1883;  // FIXED: Changed from 1884 to 1883 (standard MQTT port)
 const char* mqtt_user = "mcuzaman";  // MQTT authentication
 const char* mqtt_pass = "SimplePass123";  // MQTT password (same as ESP32)
 

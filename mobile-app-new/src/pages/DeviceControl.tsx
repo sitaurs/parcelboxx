@@ -293,6 +293,21 @@ export default function DeviceControl() {
                 <div className="grid grid-cols-2 gap-2 mb-2">
                     <Button
                         variant="secondary"
+                        onClick={() => handleFlashControl('on')}
+                        disabled={!deviceStatus?.isOnline || isLoading}
+                    >
+                        Nyalakan
+                    </Button>
+                    <Button
+                        variant="secondary"
+                        onClick={() => handleFlashControl('off')}
+                        disabled={!deviceStatus?.isOnline || isLoading}
+                    >
+                        Matikan
+                    </Button>
+                </div>
+            </Card>
+
             {/* 7. Buzzer Control */}
             <Card>
                 <div className="flex items-center justify-between mb-4">
@@ -367,39 +382,6 @@ export default function DeviceControl() {
                             isLoading={isLoading}
                         >
                             <VolumeX className="w-4 h-4 mr-2" /> Stop
-                        </Button>
-                    </div>
-                </div>
-            </Card>         {[1, 2, 5].map(sec => (
-                                <button
-                                    key={sec}
-                                    onClick={() => setBuzzerDuration(sec.toString())}
-                                    className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${buzzerDuration === sec.toString()
-                                            ? 'bg-brand-100 text-brand-700 border border-brand-200'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                        }`}
-                                >
-                                    {sec}s
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-3">
-                        <Button
-                            variant="primary"
-                            onClick={() => handleBuzzer('start')}
-                            disabled={!deviceStatus?.isOnline || isLoading}
-                            isLoading={isLoading}
-                        >
-                            <Volume2 className="w-4 h-4 mr-2" /> Start
-                        </Button>
-                        <Button
-                            variant="danger"
-                            onClick={() => handleBuzzer('stop')}
-                            disabled={!deviceStatus?.isOnline || isLoading}
-                            isLoading={isLoading}
-                        >
-                            Stop
                         </Button>
                     </div>
                 </div>
