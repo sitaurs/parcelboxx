@@ -20,11 +20,8 @@ interface RequestOptions extends RequestInit {
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 const request = async (endpoint: string, options: RequestOptions = {}, retryCount = 0): Promise<any> => {
-    const token = localStorage.getItem('authToken');
-
     const headers = {
         'Content-Type': 'application/json',
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
         ...options.headers,
     };
 
@@ -42,18 +39,6 @@ const request = async (endpoint: string, options: RequestOptions = {}, retryCoun
         });
 
         clearTimeout(timeoutId);
-
-        if (response.status === 401) {
-            // Don't logout on 401 from device control endpoints (incorrect PIN is not session expiry)
-            const isDeviceControl = endpoint.includes('/device/control/');
-            if (!isDeviceControl) {
-                // Token expired or invalid for auth endpoints
-                localStorage.removeItem('authToken');
-                useStore.getState().logout();
-                window.location.href = '/login';
-                throw new Error('Session expired');
-            }
-        }
 
         // Try to parse as JSON, fallback to text if it fails
         let data;
@@ -111,25 +96,6 @@ const request = async (endpoint: string, options: RequestOptions = {}, retryCoun
     }
 };
 
-export const authAPI = {
-    login: (username: string, password: string) =>
-        request('/auth/login', { method: 'POST', body: JSON.stringify({ username, password }) }),
-
-    verifyPin: (pin: string) =>
-        request('/auth/verify-pin', { method: 'POST', body: JSON.stringify({ pin }) }),
-
-    changePassword: (currentPassword: string, newPassword: string) =>
-        request('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword }) }),
-
-    changePin: (currentPin: string, newPin: string) =>
-        request('/auth/change-pin', { method: 'POST', body: JSON.stringify({ currentPin, newPin }) }),
-
-    changeDoorPin: (newPin: string) =>
-        request('/auth/change-door-pin', { method: 'POST', body: JSON.stringify({ newPin }) }),
-
-    logout: () => request('/auth/logout', { method: 'POST' }),
-};
-
 export const deviceAPI = {
     getStatus: () => request('/device/status'),
 
@@ -182,12 +148,4 @@ export const whatsappAPI = {
         request('/whatsapp/test', { method: 'POST', body: JSON.stringify({ phone, message }) }),
 
     logout: () => request('/whatsapp/logout', { method: 'POST' }),
-};
-
-export const setAuthToken = (token: string | null) => {
-    if (token) {
-        localStorage.setItem('authToken', token);
-    } else {
-        localStorage.removeItem('authToken');
-    }
 };

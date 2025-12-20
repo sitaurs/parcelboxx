@@ -1,8 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import Layout from './components/Layout';
-import AuthGuard from './components/AuthGuard';
-import Login from './pages/Login';
-import PinLock from './pages/PinLock';
 import Dashboard from './pages/Dashboard';
 import History from './pages/History';
 import WhatsApp from './pages/WhatsApp';
@@ -13,14 +10,7 @@ import TestDevice from './pages/TestDevice';
 export default function App() {
   return (
     <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route path="/pin-lock" element={<PinLock />} />
-
-      <Route path="/" element={
-        <AuthGuard>
-          <Layout />
-        </AuthGuard>
-      }>
+      <Route path="/" element={<Layout />}>
         <Route index element={<Dashboard />} />
         <Route path="history" element={<History />} />
         <Route path="whatsapp" element={<WhatsApp />} />
