@@ -4,11 +4,17 @@ This directory contains all Capacitor Android builds for the SmartParcel mobile 
 
 ## Build Files
 
-### Latest Build
-- **APK**: `SmartParcel-v1.0.0-debug-20251220.apk`
-- **Size**: 8.3 MB
+### Latest Build (WITH CUSTOM LOGO)
+- **APK**: `SmartParcel-v1.0.0-debug-20251220-with-logo.apk`
+- **Size**: 9.59 MB
 - **Build Date**: December 20, 2025
 - **Type**: Debug APK (unsigned)
+- **Features**: Custom logo + splash screens (light/dark mode)
+
+### Previous Build (Default Icons)
+- **APK**: `SmartParcel-v1.0.0-debug-20251220.apk`
+- **Size**: 7.89 MB
+- **Note**: Default Capacitor icons
 
 ### App Icon
 - **File**: `smartparcel-icon.ico`
@@ -100,7 +106,8 @@ Transfer APK to Android device:
 
 | Date       | Version | Filename                              | Size   | Notes                           |
 |------------|---------|---------------------------------------|--------|---------------------------------|
-| 2025-12-20 | 1.0.0   | SmartParcel-v1.0.0-debug-20251220.apk | 8.3 MB | Initial Capacitor build         |
+| 2025-12-20 | 1.0.0   | SmartParcel-v1.0.0-debug-20251220-with-logo.apk | 9.59 MB | With custom logo & splash screens |
+| 2025-12-20 | 1.0.0   | SmartParcel-v1.0.0-debug-20251220.apk | 7.89 MB | Initial build (default icons)   |
 
 ## App Configuration
 
