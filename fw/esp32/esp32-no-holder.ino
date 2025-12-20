@@ -324,9 +324,21 @@ String extractJsonString(const String& body, const char* key){
 // ===================== CAPTURE + UPLOAD (RETRY WITH MAX ATTEMPTS) =====================
 bool captureAndUploadUntilSuccess(const char* reason, float cm){
   const int MAX_ATTEMPTS = 10; // Max retry upload
-  const int MAX_CAPTURE_FAIL = 3; // Max 3x capture fail, lalu stop
+  const int MAX_CAPTURE_FAIL = 5; // Max 5x capture fail, lalu stop (increased)
   int attempt = 0;
   int captureFails = 0;
+  
+  // CRITICAL: Flush old frames from buffer before new capture
+  // This fixes the "capture fails after first detection" bug
+  Serial.println("[PHOTO] Flushing old frames from buffer...");
+  for(int i = 0; i < 3; i++) {
+    camera_fb_t* old = esp_camera_fb_get();
+    if (old) {
+      esp_camera_fb_return(old);
+      Serial.printf("[PHOTO] Flushed frame %d (%d bytes)\n", i+1, old->len);
+    }
+    delay(50);
+  }
   
   while (attempt < MAX_ATTEMPTS) {
     if (stopAll) return false;
@@ -336,7 +348,7 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
     
     // Capture dengan flash
     flashOn(true); 
-    delay(200); // Flash lebih lama untuk exposure lebih baik
+    delay(300); // Flash lebih lama untuk exposure lebih baik (increased from 200)
     camera_fb_t* fb = esp_camera_fb_get();
     flashOn(false);
 
@@ -345,9 +357,28 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
       Serial.printf("[PHOTO] ❌ Capture failed (%d/%d fails)\n", captureFails, MAX_CAPTURE_FAIL);
       mqtt.publish(T_PHSTAT.c_str(), "{\"ok\":false,\"err\":\"no_frame\"}", false);
       
+      // Try to recover camera by reinitializing I2C and flushing
+      if (captureFails == 2) {
+        Serial.println("[PHOTO] Attempting camera recovery via I2C reset...");
+        i2cRecover();
+        delay(200);
+      }
+      
       // Stop jika capture gagal terus menerus (camera hardware issue)
       if (captureFails >= MAX_CAPTURE_FAIL) {
         Serial.println("[PHOTO] ⚠️ Camera hardware issue - too many capture failures!");
+        Serial.println("[PHOTO] Attempting full camera reinit...");
+        
+        // Try to deinit and reinit camera
+        esp_camera_deinit();
+        delay(500);
+        if (initCameraSafe()) {
+          Serial.println("[PHOTO] ✅ Camera reinit SUCCESS - retrying capture");
+          captureFails = 0; // Reset counter, try again
+          continue;
+        }
+        
+        Serial.println("[PHOTO] ❌ Camera reinit FAILED");
         Serial.println("[PHOTO] Possible causes:");
         Serial.println("  - Camera module not connected properly");
         Serial.println("  - PSRAM full or corrupted");
@@ -356,7 +387,7 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
         return false;
       }
       
-      delay(1000);
+      delay(500); // Shorter delay, faster retry
       continue; // Retry capture
     }
     
@@ -463,7 +494,22 @@ void runDetectionPipeline(float cm){
   
   mqtt.publish(T_EVENT.c_str(), String("{\"type\":\"detection\",\"cm\":"+String(cm,1)+",\"mode\":\"no_holder\"}").c_str(), false);
   
-  // STEP 1: FOTO LANGSUNG (First action after detection)
+  // DELAY: Wait for package to settle in position before photo
+  // This ensures the package is fully inside the box, not mid-drop
+  const int SETTLE_DELAY_MS = 1500; // 1.5 seconds to let package settle
+  Serial.printf("[WAIT] Waiting %d ms for package to settle...\n", SETTLE_DELAY_MS);
+  mqtt.publish(T_EVENT.c_str(), String("{\"step\":\"waiting_settle\",\"ms\":" + String(SETTLE_DELAY_MS) + "}").c_str(), false);
+  
+  // Keep MQTT alive during wait
+  unsigned long waitStart = millis();
+  while (millis() - waitStart < SETTLE_DELAY_MS) {
+    if (stopAll) { busy = false; return; }
+    if (mqtt.connected()) mqtt.loop();
+    delay(50);
+  }
+  Serial.println("[WAIT] Package should be settled now");
+  
+  // STEP 1: FOTO (after package settled)
   Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   Serial.println("[STEP 1] 📸 CAPTURING PHOTO...");
   Serial.println("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
