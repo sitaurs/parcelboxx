@@ -182,11 +182,9 @@ export default function TestDevice() {
                 </div>
             </Card>
 
-            {/* Solenoid holder removed - not used in this system */
-
             {/* 5. Buzzer Test */}
             <Card>
-                <h3 className="font-bold text-gray-900 mb-4">Buzzer Test</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-4">Buzzer Test</h3>
                 <div className="grid grid-cols-2 gap-2">
                     <Button
                         variant="secondary"
