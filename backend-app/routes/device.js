@@ -322,6 +322,19 @@ router.post('/control/buzzer', authMiddleware, (req, res) => {
     let command;
     if (action === 'stop') {
       command = { buzzer: { stop: true } };
+      // Send stop command
+      const success1 = publishDeviceControl(command);
+      // Also send general stop command for more reliability
+      const success2 = publishDeviceControl({ stop: true });
+      
+      if (!success1 && !success2) {
+        return res.status(503).json({ error: 'Device not connected' });
+      }
+      
+      return res.json({
+        success: true,
+        message: 'Buzzer stop command sent (dual)'
+      });
     } else if (action === 'start') {
       command = { buzzer: { ms: ms || 5000 } };
     } else if (action === 'enable') {
