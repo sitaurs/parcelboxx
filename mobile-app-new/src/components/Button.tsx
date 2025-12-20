@@ -19,9 +19,9 @@ export default function Button({
 
     const variants = {
         primary: "bg-brand-500 text-white shadow-lg shadow-brand-500/20 hover:bg-brand-600",
-        secondary: "bg-white text-brand-600 border-2 border-brand-100 active:bg-brand-50",
-        ghost: "bg-transparent text-gray-600 hover:bg-gray-100 active:bg-gray-200",
-        danger: "bg-red-50 text-red-600 hover:bg-red-100 active:bg-red-200 border border-red-100"
+        secondary: "bg-white dark:bg-gray-700 text-brand-600 dark:text-brand-400 border-2 border-brand-100 dark:border-brand-800 active:bg-brand-50 dark:active:bg-gray-600",
+        ghost: "bg-transparent text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600",
+        danger: "bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 active:bg-red-200 border border-red-100 dark:border-red-800"
     };
 
     return (

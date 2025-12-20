@@ -29,14 +29,14 @@ export default function ConfirmationModal({
         <Modal isOpen={isOpen} onClose={onClose} title={title}>
             <div className="space-y-6">
                 <div className="flex items-start gap-4">
-                    <div className={`p-3 rounded-full shrink-0 ${variant === 'danger' ? 'bg-red-100 text-red-600' :
-                            variant === 'warning' ? 'bg-orange-100 text-orange-600' :
-                                'bg-blue-100 text-blue-600'
+                    <div className={`p-3 rounded-full shrink-0 ${variant === 'danger' ? 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400' :
+                            variant === 'warning' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400' :
+                                'bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
                         }`}>
                         <AlertTriangle className="w-6 h-6" />
                     </div>
                     <div>
-                        <p className="text-gray-600 leading-relaxed">
+                        <p className="text-gray-600 dark:text-gray-300 leading-relaxed">
                             {message}
                         </p>
                     </div>

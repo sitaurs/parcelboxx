@@ -167,10 +167,10 @@ export default function DeviceControl() {
             {/* 1. Header Section */}
             <div className="flex items-center justify-between pt-2">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">Device Control</h1>
-                    <p className="text-sm text-gray-500">Kontrol operasional harian</p>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Device Control</h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">Kontrol operasional harian</p>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${deviceStatus?.isOnline ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${deviceStatus?.isOnline ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                     }`}>
                     <div className={`w-2 h-2 rounded-full ${deviceStatus?.isOnline ? 'bg-green-500' : 'bg-red-500'}`} />
                     {deviceStatus?.isOnline ? 'Online' : 'Offline'}
@@ -179,11 +179,11 @@ export default function DeviceControl() {
 
             {/* Offline Banner */}
             {!deviceStatus?.isOnline && (
-                <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
+                <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-xl p-4 flex items-start gap-3">
                     <AlertTriangle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
                     <div>
-                        <h3 className="font-bold text-red-900 text-sm">Device Offline</h3>
-                        <p className="text-xs text-red-700 mt-1">
+                        <h3 className="font-bold text-red-900 dark:text-red-300 text-sm">Device Offline</h3>
+                        <p className="text-xs text-red-700 dark:text-red-400 mt-1">
                             Kontrol dinonaktifkan. Pastikan alat terhubung ke internet dan listrik.
                         </p>
                     </div>
@@ -193,17 +193,17 @@ export default function DeviceControl() {
             {/* 2. Device Status Card */}
             <Card>
                 <div className="flex items-center gap-4">
-                    <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center text-blue-600">
+                    <div className="w-12 h-12 bg-blue-50 dark:bg-blue-900/30 rounded-full flex items-center justify-center text-blue-600 dark:text-blue-400">
                         <Activity className="w-6 h-6" />
                     </div>
                     <div>
-                        <h3 className="font-bold text-gray-900">Status Sensor</h3>
+                        <h3 className="font-bold text-gray-900 dark:text-white">Status Sensor</h3>
                         <div className="flex items-center gap-4 mt-1">
-                            <div className="flex items-center gap-1.5 text-sm text-gray-600">
+                            <div className="flex items-center gap-1.5 text-sm text-gray-600 dark:text-gray-300">
                                 <Signal className="w-4 h-4" />
                                 <span>Jarak: <strong>{deviceStatus?.lastDistance ?? '-'} cm</strong></span>
                             </div>
-                            <div className="text-xs text-gray-400">Update tiap 1 detik</div>
+                            <div className="text-xs text-gray-400 dark:text-gray-500">Update tiap 1 detik</div>
                         </div>
                     </div>
                 </div>
@@ -212,10 +212,10 @@ export default function DeviceControl() {
             {/* 3. Lock Control */}
             <Card>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-900">Kunci Pintu (Solenoid Lock)</h3>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Kunci Pintu (Solenoid Lock)</h3>
                     <div className="flex items-center gap-2">
                         <div className={`w-2 h-2 rounded-full ${deviceStatus?.isLocked !== false ? 'bg-red-500' : 'bg-green-500'}`} />
-                        <span className="text-sm font-medium text-gray-700">Status: {deviceStatus?.isLocked !== false ? 'Terkunci' : 'Terbuka'}</span>
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status: {deviceStatus?.isLocked !== false ? 'Terkunci' : 'Terbuka'}</span>
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-3">
@@ -241,8 +241,8 @@ export default function DeviceControl() {
             {/* 4. Holder Control */}
             <Card>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-900">Penahan Paket (Holder)</h3>
-                    <span className="text-sm font-medium text-gray-700">Status: Active</span>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Penahan Paket (Holder)</h3>
+                    <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Status: Active</span>
                 </div>
                 <Button
                     variant="primary"
@@ -257,9 +257,9 @@ export default function DeviceControl() {
 
             {/* 5. Camera Control */}
             <Card>
-                <h3 className="font-bold text-gray-900 mb-4">Kamera</h3>
+                <h3 className="font-bold text-gray-900 dark:text-white mb-4">Kamera</h3>
                 <div className="flex items-start gap-4">
-                    <div className="w-24 h-24 bg-gray-100 rounded-lg flex items-center justify-center text-gray-400 text-xs text-center p-2">
+                    <div className="w-24 h-24 bg-gray-100 dark:bg-gray-700 rounded-lg flex items-center justify-center text-gray-400 dark:text-gray-500 text-xs text-center p-2">
                         Thumbnail Foto Terakhir
                     </div>
                     <div className="flex-1 space-y-3">
@@ -272,7 +272,7 @@ export default function DeviceControl() {
                         >
                             <Camera className="w-4 h-4 mr-2" /> Capture Photo
                         </Button>
-                        <p className="text-xs text-gray-500">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">
                             Foto terakhir: {new Date().toLocaleTimeString()}
                         </p>
                     </div>
@@ -282,12 +282,12 @@ export default function DeviceControl() {
             {/* 6. Flash LED Control */}
             <Card>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-900">Flash LED</h3>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Flash LED</h3>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             Status: {isFlashOn ? 'Menyala' : 'Mati'}
                         </span>
-                        <div className={`w-3 h-3 rounded-full ${isFlashOn ? 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'bg-gray-300'}`} />
+                        <div className={`w-3 h-3 rounded-full ${isFlashOn ? 'bg-yellow-400 shadow-[0_0_10px_rgba(250,204,21,0.5)]' : 'bg-gray-300 dark:bg-gray-600'}`} />
                     </div>
                 </div>
                 <div className="grid grid-cols-2 gap-2 mb-2">
@@ -296,21 +296,21 @@ export default function DeviceControl() {
             {/* 7. Buzzer Control */}
             <Card>
                 <div className="flex items-center justify-between mb-4">
-                    <h3 className="font-bold text-gray-900">Buzzer Alarm</h3>
+                    <h3 className="font-bold text-gray-900 dark:text-white">Buzzer Alarm</h3>
                     <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-gray-700">
+                        <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
                             {isBuzzerEnabled ? 'ON' : 'OFF'}
                         </span>
-                        <div className={`w-3 h-3 rounded-full ${isBuzzerEnabled ? 'bg-green-500' : 'bg-gray-300'}`} />
+                        <div className={`w-3 h-3 rounded-full ${isBuzzerEnabled ? 'bg-green-500' : 'bg-gray-300 dark:bg-gray-600'}`} />
                     </div>
                 </div>
 
                 {/* NEW: Enable/Disable Toggle */}
-                <div className="bg-gray-50 rounded-lg p-3 mb-4">
+                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-4">
                     <div className="flex items-start gap-3">
                         <div className="flex-1">
-                            <p className="text-xs font-medium text-gray-700 mb-1">Mode Notifikasi</p>
-                            <p className="text-xs text-gray-500">
+                            <p className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">Mode Notifikasi</p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
                                 {isBuzzerEnabled 
                                     ? 'Buzzer akan bunyi saat ada paket' 
                                     : 'Hanya notifikasi WhatsApp (buzzer mati)'}
@@ -335,15 +335,15 @@ export default function DeviceControl() {
                 {/* Manual Test Controls */}
                 <div className="space-y-4">
                     <div>
-                        <label className="text-xs font-medium text-gray-700 mb-1 block">Test Manual (durasi detik)</label>
+                        <label className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-1 block">Test Manual (durasi detik)</label>
                         <div className="flex gap-2">
                             {[1, 2, 5].map(sec => (
                                 <button
                                     key={sec}
                                     onClick={() => setBuzzerDuration(sec.toString())}
                                     className={`px-3 py-1 rounded-lg text-xs font-medium transition-colors ${buzzerDuration === sec.toString()
-                                            ? 'bg-brand-100 text-brand-700 border border-brand-200'
-                                            : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                            ? 'bg-brand-100 dark:bg-brand-900/30 text-brand-700 dark:text-brand-400 border border-brand-200 dark:border-brand-700'
+                                            : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                                         }`}
                                 >
                                     {sec}s

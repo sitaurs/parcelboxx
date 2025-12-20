@@ -73,8 +73,8 @@ export default function History() {
     return (
         <div className="page-container">
             <div className="flex items-center justify-between mb-6 pt-2">
-                <h1 className="text-2xl font-bold text-gray-900">Gallery</h1>
-                <span className="text-sm text-gray-500">{filteredPackages.length} Photos</span>
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Gallery</h1>
+                <span className="text-sm text-gray-500 dark:text-gray-400">{filteredPackages.length} Photos</span>
             </div>
 
             {/* Filters */}
@@ -91,7 +91,7 @@ export default function History() {
               px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors
               ${filter === f.id
                                 ? 'bg-brand-500 text-white shadow-lg shadow-brand-500/20'
-                                : 'bg-white text-gray-600 border border-gray-200'}
+                                : 'bg-white dark:bg-gray-800 text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700'}
             `}
                     >
                         {f.label}
@@ -103,7 +103,7 @@ export default function History() {
             {isLoading ? (
                 <div className="grid grid-cols-2 gap-4">
                     {[...Array(6)].map((_, i) => (
-                        <div key={i} className="aspect-square bg-gray-100 rounded-2xl animate-pulse" />
+                        <div key={i} className="aspect-square bg-gray-100 dark:bg-gray-800 rounded-2xl animate-pulse" />
                     ))}
                 </div>
             ) : filteredPackages.length > 0 ? (
@@ -112,7 +112,7 @@ export default function History() {
                         <div
                             key={pkg.id}
                             onClick={() => setSelectedPhotoIndex(index)}
-                            className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 cursor-pointer active:scale-95 transition-transform"
+                            className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 cursor-pointer active:scale-95 transition-transform"
                         >
                             <img
                                 src={pkg.thumbUrl || pkg.photoUrl}
@@ -130,11 +130,11 @@ export default function History() {
                 </div>
             ) : (
                 <div className="flex flex-col items-center justify-center py-20 text-center">
-                    <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
-                        <ImageIcon className="w-8 h-8 text-gray-400" />
+                    <div className="w-16 h-16 bg-gray-100 dark:bg-gray-800 rounded-full flex items-center justify-center mb-4">
+                        <ImageIcon className="w-8 h-8 text-gray-400 dark:text-gray-500" />
                     </div>
-                    <h3 className="font-bold text-gray-900">No photos found</h3>
-                    <p className="text-gray-500 text-sm mt-1">Try changing the filter</p>
+                    <h3 className="font-bold text-gray-900 dark:text-white">No photos found</h3>
+                    <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Try changing the filter</p>
                 </div>
             )}
 

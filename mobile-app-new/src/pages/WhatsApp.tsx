@@ -223,12 +223,12 @@ export default function WhatsApp() {
             {/* 1. Header Section */}
             <div className="flex items-center justify-between pt-2">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900">WhatsApp Settings</h1>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">WhatsApp Settings</h1>
                     {status?.isConnected && status?.senderPhone && (
-                        <p className="text-sm text-gray-500 font-mono">{status.senderPhone}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">{status.senderPhone}</p>
                     )}
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${status?.isConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${status?.isConnected ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
                     }`}>
                     <div className={`w-2 h-2 rounded-full ${status?.isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
                     {status?.isConnected ? 'Terhubung' : 'Belum Terhubung'}
@@ -239,13 +239,13 @@ export default function WhatsApp() {
             <Card className={`border-l-4 ${status?.isConnected ? 'border-l-green-500' : 'border-l-red-500'}`}>
                 <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${status?.isConnected ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-600'
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${status?.isConnected ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
                             }`}>
                             {status?.isConnected ? <CheckCircle className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
                         </div>
                         <div>
-                            <h3 className="font-bold text-gray-900">Status Koneksi</h3>
-                            <p className="text-sm text-gray-600 mt-1">
+                            <h3 className="font-bold text-gray-900 dark:text-white">Status Koneksi</h3>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
                                 {status?.isConnected
                                     ? 'Terhubung – siap mengirim notifikasi'
                                     : 'Belum terhubung – hubungkan WhatsApp terlebih dahulu'}
@@ -270,9 +270,9 @@ export default function WhatsApp() {
             {/* 3. Pairing Section (Only if NOT connected) */}
             {!status?.isConnected && (
                 <Card className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                    <div className="flex items-center gap-2 mb-2 border-b border-gray-100 dark:border-gray-700 pb-2">
                         <QrCode className="w-5 h-5 text-brand-500" />
-                        <h3 className="font-bold text-gray-900">Hubungkan WhatsApp</h3>
+                        <h3 className="font-bold text-gray-900 dark:text-white">Hubungkan WhatsApp</h3>
                     </div>
 
                     <div className="space-y-4">
@@ -289,10 +289,10 @@ export default function WhatsApp() {
                         </Button>
 
                         {pairingCode && (
-                            <div className="bg-gray-50 p-4 rounded-xl border border-gray-200 text-center mt-2 animate-fade-in">
-                                <p className="text-xs text-gray-500 mb-2">Kode Pairing Anda:</p>
+                            <div className="bg-gray-50 dark:bg-gray-800 p-4 rounded-xl border border-gray-200 dark:border-gray-700 text-center mt-2 animate-fade-in">
+                                <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Kode Pairing Anda:</p>
                                 <div className="flex items-center justify-center gap-3 mb-3">
-                                    <span className="text-3xl font-mono font-bold tracking-widest text-gray-900">
+                                    <span className="text-3xl font-mono font-bold tracking-widest text-gray-900 dark:text-white">
                                         {pairingCode.slice(0, 4)}-{pairingCode.slice(4)}
                                     </span>
                                     <button
@@ -300,12 +300,12 @@ export default function WhatsApp() {
                                             navigator.clipboard.writeText(pairingCode);
                                             success('📋 Kode berhasil disalin!');
                                         }}
-                                        className="p-2 hover:bg-gray-200 rounded-full transition-colors"
+                                        className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded-full transition-colors"
                                     >
-                                        <Copy className="w-5 h-5 text-gray-500" />
+                                        <Copy className="w-5 h-5 text-gray-500 dark:text-gray-400" />
                                     </button>
                                 </div>
-                                <div className="text-left text-xs text-gray-600 bg-white p-3 rounded-lg border border-gray-100">
+                                <div className="text-left text-xs text-gray-600 dark:text-gray-300 bg-white dark:bg-gray-900 p-3 rounded-lg border border-gray-100 dark:border-gray-700">
                                     <p className="font-semibold mb-1">Langkah selanjutnya:</p>
                                     <ol className="list-decimal list-inside space-y-1">
                                         <li>Buka WhatsApp di HP Anda</li>
@@ -323,9 +323,9 @@ export default function WhatsApp() {
             {/* 4. Connection Management (Only if Connected) */}
             {status?.isConnected && (
                 <Card className="space-y-4">
-                    <div className="flex items-center gap-2 mb-2 border-b pb-2">
+                    <div className="flex items-center gap-2 mb-2 border-b border-gray-100 dark:border-gray-700 pb-2">
                         <RefreshCw className="w-5 h-5 text-blue-500" />
-                        <h3 className="font-bold text-gray-900">Kelola Koneksi</h3>
+                        <h3 className="font-bold text-gray-900 dark:text-white">Kelola Koneksi</h3>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -344,7 +344,7 @@ export default function WhatsApp() {
                             Logout WhatsApp
                         </Button>
                     </div>
-                    <p className="text-xs text-gray-400 text-center">
+                    <p className="text-xs text-gray-400 dark:text-gray-500 text-center">
                         Logout akan menghentikan semua notifikasi sampai Anda pairing ulang.
                     </p>
                 </Card>
@@ -354,8 +354,8 @@ export default function WhatsApp() {
             <div>
                 <div className="flex items-center justify-between mb-3">
                     <div>
-                        <h3 className="font-semibold text-gray-900">Penerima Notifikasi</h3>
-                        <p className="text-xs text-gray-500">{recipients.length} penerima terdaftar</p>
+                        <h3 className="font-semibold text-gray-900 dark:text-white">Penerima Notifikasi</h3>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">{recipients.length} penerima terdaftar</p>
                     </div>
                 </div>
 
@@ -378,22 +378,22 @@ export default function WhatsApp() {
 
                 <div className="space-y-3">
                     {recipients.length === 0 ? (
-                        <div className="text-center py-8 bg-gray-50 rounded-3xl border border-dashed border-gray-200">
-                            <Users className="w-8 h-8 text-gray-300 mx-auto mb-2" />
-                            <p className="text-sm text-gray-500">Belum ada penerima</p>
-                            <p className="text-xs text-gray-400">Tambahkan agar notifikasi berjalan</p>
+                        <div className="text-center py-8 bg-gray-50 dark:bg-gray-800 rounded-3xl border border-dashed border-gray-200 dark:border-gray-700">
+                            <Users className="w-8 h-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
+                            <p className="text-sm text-gray-500 dark:text-gray-400">Belum ada penerima</p>
+                            <p className="text-xs text-gray-400 dark:text-gray-500">Tambahkan agar notifikasi berjalan</p>
                         </div>
                     ) : (
                         recipients.map((phone, idx) => (
-                            <div key={idx} className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between">
+                            <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${phone.length > 15 ? 'bg-purple-100 text-purple-600' : 'bg-brand-50 text-brand-600'
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${phone.length > 15 ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
                                         }`}>
                                         {phone.length > 15 ? <Users className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-gray-900 text-sm truncate max-w-[180px]">{phone}</p>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${phone.length > 15 ? 'bg-purple-50 text-purple-600' : 'bg-gray-100 text-gray-600'
+                                        <p className="font-bold text-gray-900 dark:text-white text-sm truncate max-w-[180px]">{phone}</p>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${phone.length > 15 ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                                             }`}>
                                             {phone.length > 15 ? 'Group' : 'Individual'}
                                         </span>
@@ -401,7 +401,7 @@ export default function WhatsApp() {
                                 </div>
                                 <button
                                     onClick={() => handleDeleteRecipient(phone)}
-                                    className="p-2 hover:bg-red-50 text-gray-400 hover:text-red-500 rounded-full transition-colors"
+                                    className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 rounded-full transition-colors"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
@@ -455,25 +455,25 @@ export default function WhatsApp() {
             >
                 <div className="max-h-[60vh] overflow-y-auto -mx-2 px-2">
                     {isGroupLoading ? (
-                        <div className="py-8 text-center text-gray-500">Memuat daftar grup...</div>
+                        <div className="py-8 text-center text-gray-500 dark:text-gray-400">Memuat daftar grup...</div>
                     ) : groups.length === 0 ? (
-                        <div className="py-8 text-center text-gray-500">Tidak ada grup ditemukan</div>
+                        <div className="py-8 text-center text-gray-500 dark:text-gray-400">Tidak ada grup ditemukan</div>
                     ) : (
                         <div className="space-y-2">
                             {groups.map((group) => (
                                 <button
                                     key={group.JID || group.id}
                                     onClick={() => handleAddGroup(group)}
-                                    className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 rounded-xl transition-colors text-left"
+                                    className="w-full flex items-center gap-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors text-left"
                                 >
-                                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center text-purple-600 shrink-0">
+                                    <div className="w-10 h-10 bg-purple-100 dark:bg-purple-900/30 rounded-full flex items-center justify-center text-purple-600 dark:text-purple-400 shrink-0">
                                         <Users className="w-5 h-5" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-gray-900 truncate">{group.Name || group.name || 'Grup Tanpa Nama'}</p>
-                                        <p className="text-xs text-gray-500 truncate">{group.JID || group.id}</p>
+                                        <p className="font-medium text-gray-900 dark:text-white truncate">{group.Name || group.name || 'Grup Tanpa Nama'}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">{group.JID || group.id}</p>
                                     </div>
-                                    <Plus className="w-5 h-5 text-gray-400" />
+                                    <Plus className="w-5 h-5 text-gray-400 dark:text-gray-500" />
                                 </button>
                             ))}
                         </div>
