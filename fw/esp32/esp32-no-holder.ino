@@ -328,41 +328,66 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
   int attempt = 0;
   int captureFails = 0;
   
-  // CRITICAL: Flush old frames and warm up camera before new capture
-  // This fixes the "capture fails after first detection" bug
-  Serial.println("[PHOTO] Warming up camera and flushing old frames...");
+  // CRITICAL: Camera warmup sequence for reliable first capture
+  // The OV2640 sensor needs time to stabilize after being idle
+  Serial.println("[PHOTO] Camera warmup sequence starting...");
   
-  // First, do a quick I2C recovery to wake up camera
+  // Step 1: I2C recovery to ensure sensor communication
   i2cRecover();
-  delay(100);
+  delay(50);
   
-  // Flush more frames (5 instead of 3) for first detection reliability
-  int flushed = 0;
-  for(int i = 0; i < 5; i++) {
-    camera_fb_t* old = esp_camera_fb_get();
-    if (old) {
-      flushed++;
-      Serial.printf("[PHOTO] Flushed frame %d (%d bytes)\n", flushed, old->len);
-      esp_camera_fb_return(old);
-    }
-    delay(50);
-  }
+  // Step 2: Turn on flash briefly to "wake up" the sensor AGC/AEC
+  Serial.println("[PHOTO] Flash warmup for sensor AGC/AEC...");
+  flashOn(true);
+  delay(150);
   
-  // If no frames were flushed, camera might be stuck - do recovery
-  if (flushed == 0) {
-    Serial.println("[PHOTO] No frames to flush - camera might be cold, warming up...");
-    i2cRecover();
-    delay(200);
-    // Try one more capture to wake it up
+  // Step 3: Do 3 warmup captures WITH flash to stabilize sensor
+  // These captures "prime" the sensor's auto-exposure
+  Serial.println("[PHOTO] Warmup captures to stabilize sensor...");
+  int warmupSuccess = 0;
+  for(int i = 0; i < 3; i++) {
     camera_fb_t* warmup = esp_camera_fb_get();
     if (warmup) {
-      Serial.printf("[PHOTO] Warmup capture OK (%d bytes)\n", warmup->len);
+      warmupSuccess++;
+      Serial.printf("[PHOTO] Warmup %d OK (%d bytes)\n", i+1, warmup->len);
       esp_camera_fb_return(warmup);
+    } else {
+      Serial.printf("[PHOTO] Warmup %d - no frame\n", i+1);
     }
-    delay(100);
+    delay(100); // Give sensor time between captures
+  }
+  flashOn(false);
+  
+  // Step 4: If warmup failed, do full recovery
+  if (warmupSuccess == 0) {
+    Serial.println("[PHOTO] Warmup failed - attempting I2C recovery...");
+    i2cRecover();
+    delay(300);
+    
+    // Try one more with longer flash
+    flashOn(true);
+    delay(200);
+    camera_fb_t* recovery = esp_camera_fb_get();
+    flashOn(false);
+    if (recovery) {
+      Serial.printf("[PHOTO] Recovery capture OK (%d bytes)\n", recovery->len);
+      esp_camera_fb_return(recovery);
+    } else {
+      Serial.println("[PHOTO] Recovery capture also failed - will try anyway");
+    }
   }
   
-  Serial.println("[PHOTO] Camera ready for capture");
+  // Step 5: Final flush to clear any stale frames
+  Serial.println("[PHOTO] Final buffer flush...");
+  for(int i = 0; i < 2; i++) {
+    camera_fb_t* flush = esp_camera_fb_get();
+    if (flush) {
+      esp_camera_fb_return(flush);
+    }
+    delay(30);
+  }
+  
+  Serial.printf("[PHOTO] Warmup complete (%d/3 successful) - ready for capture\n", warmupSuccess);
   
   while (attempt < MAX_ATTEMPTS) {
     if (stopAll) return false;
