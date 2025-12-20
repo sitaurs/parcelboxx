@@ -1,5 +1,3 @@
-import { useStore } from '../store/useStore';
-
 // VPS URL as per user instruction
 export const API_URL = 'http://3.27.11.106:9090/api';
 

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { Image as ImageIcon } from 'lucide-react';
 import { packageAPI, API_URL } from '../services/api';
 import { useToast } from '../hooks/useToast';
