@@ -115,7 +115,7 @@ export default function History() {
                             className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 cursor-pointer active:scale-95 transition-transform"
                         >
                             <img
-                                src={pkg.photoPath ? `${API_URL.replace('/api', '')}/uploads/${pkg.photoPath}` : 'https://placehold.co/400x400/orange/white?text=No+Image'}
+                                src={pkg.thumbUrl ? `${API_URL.replace('/api', '')}${pkg.thumbUrl}` : (pkg.photoUrl ? `${API_URL.replace('/api', '')}${pkg.photoUrl}` : 'https://placehold.co/400x400/orange/white?text=No+Image')}
                                 alt={`Package ${pkg.id}`}
                                 className="w-full h-full object-cover"
                                 loading="lazy"

@@ -147,7 +147,7 @@ export default function Dashboard() {
                 {latestPackage ? (
                     <Card className="flex gap-4 !p-4 active:scale-95 transition-transform cursor-pointer">
                         <img
-                            src={latestPackage.photoPath ? `${API_URL.replace('/api', '')}/uploads/${latestPackage.photoPath}` : 'https://placehold.co/100x100/orange/white?text=Box'}
+                            src={latestPackage.thumbUrl ? `${API_URL.replace('/api', '')}${latestPackage.thumbUrl}` : (latestPackage.photoUrl ? `${API_URL.replace('/api', '')}${latestPackage.photoUrl}` : 'https://placehold.co/100x100/orange/white?text=Box')}
                             alt="Package"
                             className="w-20 h-20 rounded-xl object-cover bg-gray-100 dark:bg-gray-700"
                             onError={(e) => {

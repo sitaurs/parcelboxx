@@ -7,10 +7,12 @@ import { API_URL } from '../../services/api';
 // Helper function to get full image URL
 const getImageUrl = (photo: any) => {
     if (!photo) return '';
-    if (photo.photoPath) {
-        return `${API_URL.replace('/api', '')}/uploads/${photo.photoPath}`;
+    // Database stores photoUrl as "/storage/package_xxx.jpg"
+    if (photo.photoUrl) {
+        // photoUrl sudah include /storage/, jadi langsung append ke base URL
+        return `${API_URL.replace('/api', '')}${photo.photoUrl}`;
     }
-    return photo.photoUrl || 'https://placehold.co/400x400/orange/white?text=No+Image';
+    return 'https://placehold.co/400x400/orange/white?text=No+Image';
 };
 
 interface PhotoLightboxProps {
