@@ -466,11 +466,16 @@ void buzzerPatternMs(uint32_t totalMs){
   unsigned long start = millis();
   bool buzzState = false;
   unsigned long lastToggle = millis();
+  unsigned long lastMqttLoop = millis();
   
   Serial.printf("[BUZZER] Starting notification (%d seconds)...\n", totalMs/1000);
   
   while (millis() - start < totalMs){
-    if (stopAll || stopBuzz) break;
+    // Check stop flag frequently
+    if (stopAll || stopBuzz) {
+      Serial.println("[BUZZER] ⚠️ Stop command received!");
+      break;
+    }
     
     unsigned long now = millis();
     unsigned long toggleInterval = buzzState ? S.buzzOn : S.buzzOff;
@@ -481,7 +486,12 @@ void buzzerPatternMs(uint32_t totalMs){
       lastToggle = now;
     }
     
-    if (mqtt.connected()) mqtt.loop();
+    // Call mqtt.loop() more frequently (every 50ms)
+    if (now - lastMqttLoop >= 50) {
+      if (mqtt.connected()) mqtt.loop();
+      lastMqttLoop = now;
+    }
+    
     yield();
   }
   relayWrite(PIN_BUZZER, false);
@@ -604,12 +614,14 @@ void onMqtt(char* topic, byte* payload, unsigned int len){
       return;
     }
     if (s.indexOf("\"buzzer\"")>=0){
+      Serial.printf("[MQTT] Buzzer command received: %s\n", s.c_str());
+      
       // Stop buzzer
       if (s.indexOf("\"stop\"")>=0){ 
         stopBuzz = true; 
         relayWrite(PIN_BUZZER,false); 
         ack("{\"ok\":true,\"action\":\"buzzer_stop\",\"state\":\"stopped\"}"); 
-        Serial.println("[BUZZER] Stopped by user command");
+        Serial.println("[BUZZER] ⚠️ Stopped by user command");
         return; 
       }
       // Enable buzzer
