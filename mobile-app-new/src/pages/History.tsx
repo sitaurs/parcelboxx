@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Image as ImageIcon } from 'lucide-react';
-import { packageAPI } from '../services/api';
+import { packageAPI, API_URL } from '../services/api';
 import { useToast } from '../hooks/useToast';
 import { formatDate } from '../utils/formatter';
 import PhotoLightbox from '../components/modals/PhotoLightbox';
@@ -115,10 +115,13 @@ export default function History() {
                             className="group relative aspect-square rounded-2xl overflow-hidden bg-gray-100 dark:bg-gray-800 cursor-pointer active:scale-95 transition-transform"
                         >
                             <img
-                                src={pkg.thumbUrl || pkg.photoUrl}
+                                src={pkg.photoPath ? `${API_URL.replace('/api', '')}/uploads/${pkg.photoPath}` : 'https://placehold.co/400x400/orange/white?text=No+Image'}
                                 alt={`Package ${pkg.id}`}
                                 className="w-full h-full object-cover"
                                 loading="lazy"
+                                onError={(e) => {
+                                    (e.target as HTMLImageElement).src = 'https://placehold.co/400x400/orange/white?text=Error';
+                                }}
                             />
                             <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-3">
                                 <p className="text-white text-xs font-medium truncate">

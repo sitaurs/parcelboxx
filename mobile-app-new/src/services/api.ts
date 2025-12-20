@@ -117,6 +117,9 @@ export const deviceAPI = {
         request('/device/control/flash', { method: 'POST', body: JSON.stringify({ state, ms }) }),
 
     capture: () => request('/device/control/capture', { method: 'POST' }),
+
+    updateDoorPin: (pin: string) =>
+        request('/device/control/door-pin', { method: 'POST', body: JSON.stringify({ pin }) }),
 };
 
 export const packageAPI = {

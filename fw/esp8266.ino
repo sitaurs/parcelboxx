@@ -464,6 +464,10 @@ void loop() {
   // Baca keypad
   char k = scanKeypadOnce();
   if (k) {
+    // Print tombol yang ditekan ke serial monitor
+    Serial.print("[KEYPAD] Tombol ditekan: ");
+    Serial.println(k);
+    
     if (k == '*') {                 // Clear semua
       inputUser = ""; info("Kode dihapus", 350); tampilSiap();
     }

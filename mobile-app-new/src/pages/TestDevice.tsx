@@ -182,22 +182,7 @@ export default function TestDevice() {
                 </div>
             </Card>
 
-            {/* 4. Lock & Holder Test */}
-            <Card>
-                <h3 className="font-bold text-gray-900 mb-4">Solenoid Test</h3>
-                <div className="space-y-3">
-                    <Button
-                        variant="secondary"
-                        className="w-full justify-start"
-                        onClick={() => testAction('Test Holder Release', () => deviceAPI.controlHolder('pulse', 2000))}
-                        disabled={!deviceStatus?.isOnline || isLoading}
-                    >
-                        <Lock className="w-4 h-4 mr-3 text-gray-500" /> Test Release Holder (2s)
-                    </Button>
-
-                    {/* Note: Door unlock usually requires PIN, skipping simple button for security or adding specific test endpoint if exists */}
-                </div>
-            </Card>
+            {/* Solenoid holder removed - not used in this system */
 
             {/* 5. Buzzer Test */}
             <Card>

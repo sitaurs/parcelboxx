@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sliders, Activity, Radio, Sun, Moon, ChevronRight } from 'lucide-react';
+import { Sliders, Activity, Radio, Sun, Moon, ChevronRight, KeyRound } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import Card from '../components/Card';
 import DetectionModeModal from '../components/modals/DetectionModeModal';
+import ChangeDoorPinModal from '../components/modals/ChangeDoorPinModal';
 
 export default function Settings() {
     const navigate = useNavigate();
     const { isDarkMode, toggleDarkMode } = useStore();
 
     const [showDetectionModeModal, setShowDetectionModeModal] = useState(false);
+    const [showChangeDoorPinModal, setShowChangeDoorPinModal] = useState(false);
 
     const SettingItem = ({ icon: Icon, label, onClick, color = 'text-gray-600' }: any) => (
         <button
@@ -55,6 +57,19 @@ export default function Settings() {
                 </Card>
             </div>
 
+            {/* Security */}
+            <div>
+                <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 ml-1">Security</h3>
+                <Card className="!p-0 overflow-hidden">
+                    <SettingItem
+                        icon={KeyRound}
+                        label="Change Door Lock PIN"
+                        onClick={() => setShowChangeDoorPinModal(true)}
+                        color="text-red-600"
+                    />
+                </Card>
+            </div>
+
             {/* Appearance */}
             <div>
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3 ml-1">Appearance</h3>
@@ -95,6 +110,10 @@ export default function Settings() {
             <DetectionModeModal
                 isOpen={showDetectionModeModal}
                 onClose={() => setShowDetectionModeModal(false)}
+            />
+            <ChangeDoorPinModal
+                isOpen={showChangeDoorPinModal}
+                onClose={() => setShowChangeDoorPinModal(false)}
             />
         </div>
     );
