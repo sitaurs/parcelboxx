@@ -320,7 +320,7 @@ export default function WhatsApp() {
                         >
                             Kirim Pesan Tes
                         </Button>
-                    </div>
+                    </motion.div>
                 )}
             </Card>
 
