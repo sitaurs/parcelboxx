@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
     QrCode, Trash2, Users, Copy,
     RefreshCw, Plus, CheckCircle, XCircle, Phone
@@ -11,6 +12,24 @@ import Input from '../components/Input';
 import BottomSheet from '../components/BottomSheet';
 import Modal from '../components/Modal';
 import ConfirmationModal from '../components/ConfirmationModal';
+
+// Animation variants
+const containerVariants = {
+    initial: { opacity: 0 },
+    animate: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+    }
+};
+
+const itemVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: { 
+        opacity: 1, 
+        y: 0,
+        transition: { type: 'spring' as const, stiffness: 300, damping: 25 }
+    }
+};
 
 export default function WhatsApp() {
     const [status, setStatus] = useState<any>(null);
@@ -219,30 +238,64 @@ export default function WhatsApp() {
     };
 
     return (
-        <div className="page-container space-y-6">
+        <motion.div 
+            className="page-container space-y-6"
+            variants={containerVariants}
+            initial="initial"
+            animate="animate"
+        >
             {/* 1. Header Section */}
-            <div className="flex items-center justify-between pt-2">
+            <motion.div 
+                className="flex items-center justify-between pt-2"
+                variants={itemVariants}
+            >
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">WhatsApp Settings</h1>
+                    <motion.h1 
+                        className="text-2xl font-bold text-gray-900 dark:text-white"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                    >
+                        WhatsApp Settings
+                    </motion.h1>
                     {status?.isConnected && status?.senderPhone && (
-                        <p className="text-sm text-gray-500 dark:text-gray-400 font-mono">{status.senderPhone}</p>
+                        <motion.p 
+                            className="text-sm text-gray-500 dark:text-gray-400 font-mono"
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            transition={{ delay: 0.2 }}
+                        >
+                            {status.senderPhone}
+                        </motion.p>
                     )}
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${status?.isConnected ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                    }`}>
-                    <div className={`w-2 h-2 rounded-full ${status?.isConnected ? 'bg-green-500' : 'bg-red-500'}`} />
+                <motion.div 
+                    className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${status?.isConnected ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                    }`}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    whileHover={{ scale: 1.05 }}
+                >
+                    <motion.div 
+                        className={`w-2 h-2 rounded-full ${status?.isConnected ? 'bg-green-500' : 'bg-red-500'}`}
+                        animate={status?.isConnected ? { scale: [1, 1.3, 1], opacity: [1, 0.7, 1] } : {}}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                    />
                     {status?.isConnected ? 'Terhubung' : 'Belum Terhubung'}
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
 
             {/* 2. Connection Status Card */}
-            <Card className={`border-l-4 ${status?.isConnected ? 'border-l-green-500' : 'border-l-red-500'}`}>
+            <Card className={`border-l-4 ${status?.isConnected ? 'border-l-green-500' : 'border-l-red-500'}`} delay={0.1}>
                 <div className="flex items-start justify-between">
                     <div className="flex items-start gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${status?.isConnected ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
-                            }`}>
+                        <motion.div 
+                            className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 ${status?.isConnected ? 'bg-green-100 dark:bg-green-900/30 text-green-600 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'
+                            }`}
+                            animate={status?.isConnected ? { rotate: [0, 5, -5, 0] } : { scale: [1, 0.95, 1] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                        >
                             {status?.isConnected ? <CheckCircle className="w-6 h-6" /> : <XCircle className="w-6 h-6" />}
-                        </div>
+                        </motion.div>
                         <div>
                             <h3 className="font-bold text-gray-900 dark:text-white">Status Koneksi</h3>
                             <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">
@@ -254,7 +307,11 @@ export default function WhatsApp() {
                     </div>
                 </div>
                 {status?.isConnected && (
-                    <div className="mt-4 flex justify-end">
+                    <motion.div 
+                        className="mt-4 flex justify-end"
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                    >
                         <Button
                             variant="secondary"
                             className="text-xs py-2 h-auto"
@@ -490,6 +547,6 @@ export default function WhatsApp() {
                 variant={confirmModal.variant}
                 isLoading={isLoading}
             />
-        </div>
+        </motion.div>
     );
 }

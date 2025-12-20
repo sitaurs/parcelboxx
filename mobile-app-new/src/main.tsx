@@ -1,7 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import App from './App';
+import SplashScreen from './components/SplashScreen';
 import { ToastProvider } from './hooks/useToast';
 import './index.css';
 
@@ -13,12 +15,29 @@ if (savedDarkMode === 'true') {
   document.documentElement.classList.remove('dark');
 }
 
-ReactDOM.createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <BrowserRouter>
-      <ToastProvider>
-        <App />
-      </ToastProvider>
-    </BrowserRouter>
-  </React.StrictMode>,
-);
+function Root() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  // Hide splash after animation completes
+  const handleSplashComplete = () => {
+    setShowSplash(false);
+  };
+
+  return (
+    <React.StrictMode>
+      <BrowserRouter>
+        <ToastProvider>
+          <AnimatePresence mode="wait">
+            {showSplash ? (
+              <SplashScreen key="splash" onComplete={handleSplashComplete} />
+            ) : (
+              <App key="app" />
+            )}
+          </AnimatePresence>
+        </ToastProvider>
+      </BrowserRouter>
+    </React.StrictMode>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')!).render(<Root />);

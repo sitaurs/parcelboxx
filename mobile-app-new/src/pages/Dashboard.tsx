@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Wifi, Lock, Signal, Package, VolumeX, Unlock } from 'lucide-react';
 import { useStore } from '../store/useStore';
 import { deviceAPI, packageAPI, API_CONFIG, API_URL } from '../services/api';
@@ -6,6 +7,24 @@ import { useToast } from '../hooks/useToast';
 import { formatDate } from '../utils/formatter';
 import Card from '../components/Card';
 import UnlockDoorModal from '../components/modals/UnlockDoorModal';
+
+// Animation variants
+const containerVariants = {
+    initial: { opacity: 0 },
+    animate: {
+        opacity: 1,
+        transition: { staggerChildren: 0.1, delayChildren: 0.1 }
+    }
+};
+
+const itemVariants = {
+    initial: { opacity: 0, y: 20 },
+    animate: { 
+        opacity: 1, 
+        y: 0,
+        transition: { type: 'spring' as const, stiffness: 300, damping: 25 }
+    }
+};
 
 export default function Dashboard() {
     const { deviceStatus, setDeviceStatus } = useStore();
@@ -49,110 +68,187 @@ export default function Dashboard() {
     };
 
     return (
-        <div className="page-container space-y-6">
+        <motion.div 
+            className="page-container space-y-6"
+            variants={containerVariants}
+            initial="initial"
+            animate="animate"
+        >
             {/* Header */}
-            <div className="flex items-center justify-between pt-2">
+            <motion.div variants={itemVariants} className="flex items-center justify-between pt-2">
                 <div>
-                    <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">SmartParcel</h1>
-                    <p className="text-sm text-gray-500 dark:text-gray-400">Monitoring System</p>
+                    <motion.h1 
+                        className="text-2xl font-bold text-gray-900 dark:text-gray-100"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: 0.2 }}
+                    >
+                        SmartParcel
+                    </motion.h1>
+                    <motion.p 
+                        className="text-sm text-gray-500 dark:text-gray-400"
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.3 }}
+                    >
+                        Monitoring System
+                    </motion.p>
                 </div>
-                <div className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${deviceStatus?.isOnline ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
-                    }`}>
-                    <div className={`w-2 h-2 rounded-full ${deviceStatus?.isOnline ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`} />
+                <motion.div 
+                    className={`px-3 py-1 rounded-full text-xs font-medium flex items-center gap-1.5 ${deviceStatus?.isOnline ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400' : 'bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400'
+                    }`}
+                    initial={{ opacity: 0, scale: 0.8 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: 0.4, type: 'spring' }}
+                    whileHover={{ scale: 1.05 }}
+                >
+                    <motion.div 
+                        className={`w-2 h-2 rounded-full ${deviceStatus?.isOnline ? 'bg-green-500' : 'bg-red-500'}`}
+                        animate={deviceStatus?.isOnline ? {
+                            scale: [1, 1.3, 1],
+                            opacity: [1, 0.7, 1],
+                        } : {}}
+                        transition={{ duration: 1.5, repeat: Infinity }}
+                    />
                     {deviceStatus?.isOnline ? 'Online' : 'Offline'}
-                </div>
-            </div>
+                </motion.div>
+            </motion.div>
 
             {/* Device Status Card */}
-            <Card className="space-y-4">
+            <Card className="space-y-4" delay={0.1}>
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100">Device Status</h3>
                 <div className="grid grid-cols-1 gap-4">
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-800 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                            <Wifi className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Connection</span>
-                        </div>
-                        <span className="text-sm font-semibold text-green-600 dark:text-green-400">Connected</span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-800 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                            <Lock className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Lock Status</span>
-                        </div>
-                        <span className="text-sm font-semibold text-brand-600 dark:text-brand-400">Locked</span>
-                    </div>
-
-                    <div className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-800 rounded-2xl">
-                        <div className="flex items-center gap-3">
-                            <Signal className="w-5 h-5 text-gray-400 dark:text-gray-500" />
-                            <span className="text-sm font-medium text-gray-600 dark:text-gray-300">Sensor Distance</span>
-                        </div>
-                        <span className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                            {deviceStatus?.lastDistance?.toFixed(1) || 0} cm
-                        </span>
-                    </div>
+                    {[
+                        { icon: Wifi, label: 'Connection', value: 'Connected', color: 'text-green-600 dark:text-green-400' },
+                        { icon: Lock, label: 'Lock Status', value: 'Locked', color: 'text-brand-600 dark:text-brand-400' },
+                        { icon: Signal, label: 'Sensor Distance', value: `${deviceStatus?.lastDistance?.toFixed(1) || 0} cm`, color: 'text-gray-900 dark:text-gray-100' },
+                    ].map((item, index) => (
+                        <motion.div 
+                            key={item.label}
+                            className="flex items-center justify-between p-3 bg-gray-50 dark:bg-zinc-800 rounded-2xl"
+                            initial={{ opacity: 0, x: -20 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: 0.2 + index * 0.1 }}
+                            whileHover={{ scale: 1.02, x: 5 }}
+                        >
+                            <div className="flex items-center gap-3">
+                                <motion.div
+                                    animate={{ rotate: [0, 5, -5, 0] }}
+                                    transition={{ duration: 2, repeat: Infinity, delay: index * 0.5 }}
+                                >
+                                    <item.icon className="w-5 h-5 text-gray-400 dark:text-gray-500" />
+                                </motion.div>
+                                <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{item.label}</span>
+                            </div>
+                            <span className={`text-sm font-semibold ${item.color}`}>{item.value}</span>
+                        </motion.div>
+                    ))}
                 </div>
             </Card>
 
             {/* Stats Grid */}
-            <div>
+            <motion.div variants={itemVariants}>
                 <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-3">Package Statistics</h3>
                 <div className="grid grid-cols-2 gap-4">
-                    <Card className="!p-4">
+                    <Card className="!p-4" delay={0.2}>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Paket Hari Ini</p>
-                        <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.today}</p>
+                        <motion.p 
+                            className="text-3xl font-bold text-gray-900 dark:text-gray-100"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', delay: 0.4 }}
+                        >
+                            {stats.today}
+                        </motion.p>
                     </Card>
-                    <Card className="!p-4">
+                    <Card className="!p-4" delay={0.25}>
                         <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Paket Minggu Ini</p>
-                        <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.thisWeek}</p>
+                        <motion.p 
+                            className="text-3xl font-bold text-gray-900 dark:text-gray-100"
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            transition={{ type: 'spring', delay: 0.5 }}
+                        >
+                            {stats.thisWeek}
+                        </motion.p>
                     </Card>
-                    <Card className="!p-4 col-span-2 flex items-center justify-between">
+                    <Card className="!p-4 col-span-2 flex items-center justify-between" delay={0.3}>
                         <div>
                             <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">Total Paket</p>
-                            <p className="text-3xl font-bold text-gray-900 dark:text-gray-100">{stats.total}</p>
+                            <motion.p 
+                                className="text-3xl font-bold text-gray-900 dark:text-gray-100"
+                                initial={{ scale: 0 }}
+                                animate={{ scale: 1 }}
+                                transition={{ type: 'spring', delay: 0.6 }}
+                            >
+                                {stats.total}
+                            </motion.p>
                         </div>
-                        <div className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center text-brand-600 dark:text-brand-400">
+                        <motion.div 
+                            className="w-12 h-12 bg-brand-100 dark:bg-brand-900/30 rounded-full flex items-center justify-center text-brand-600 dark:text-brand-400"
+                            animate={{ 
+                                y: [0, -5, 0],
+                                rotate: [0, 5, -5, 0]
+                            }}
+                            transition={{ duration: 3, repeat: Infinity }}
+                        >
                             <Package className="w-6 h-6" />
-                        </div>
+                        </motion.div>
                     </Card>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Quick Actions */}
-            <div>
+            <motion.div variants={itemVariants}>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
                 <div className="grid grid-cols-2 gap-3">
-                    <button
+                    <motion.button
                         onClick={handleStopBuzzer}
-                        className="flex flex-col items-center justify-center gap-2 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-3xl active:scale-95 transition-transform"
+                        className="flex flex-col items-center justify-center gap-2 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-3xl"
+                        whileHover={{ scale: 1.05, boxShadow: '0 10px 30px rgba(249, 115, 22, 0.3)' }}
+                        whileTap={{ scale: 0.95 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.4 }}
                     >
                         <VolumeX className="w-6 h-6" />
                         <span className="text-[10px] font-bold text-center leading-tight">Stop<br />Buzzer</span>
-                    </button>
+                    </motion.button>
 
-                    <button
+                    <motion.button
                         onClick={() => setIsUnlockModalOpen(true)}
-                        className="flex flex-col items-center justify-center gap-2 p-4 bg-brand-500 text-white rounded-3xl shadow-lg shadow-brand-500/30 active:scale-95 transition-transform"
+                        className="flex flex-col items-center justify-center gap-2 p-4 bg-brand-500 text-white rounded-3xl shadow-lg shadow-brand-500/30"
+                        whileHover={{ scale: 1.05, boxShadow: '0 10px 40px rgba(249, 115, 22, 0.4)' }}
+                        whileTap={{ scale: 0.95 }}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.5 }}
                     >
-                        <Unlock className="w-6 h-6" />
+                        <motion.div
+                            animate={{ rotate: [0, -10, 10, 0] }}
+                            transition={{ duration: 2, repeat: Infinity, repeatDelay: 3 }}
+                        >
+                            <Unlock className="w-6 h-6" />
+                        </motion.div>
                         <span className="text-[10px] font-bold text-center leading-tight">Unlock<br />Door</span>
-                    </button>
+                    </motion.button>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Latest Package */}
-            <div>
+            <motion.div variants={itemVariants}>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Latest Package</h3>
                 {latestPackage ? (
-                    <Card className="flex gap-4 !p-4 active:scale-95 transition-transform cursor-pointer">
-                        <img
+                    <Card className="flex gap-4 !p-4 cursor-pointer" delay={0.5}>
+                        <motion.img
                             src={latestPackage.thumbUrl ? `${API_URL.replace('/api', '')}${latestPackage.thumbUrl}` : (latestPackage.photoUrl ? `${API_URL.replace('/api', '')}${latestPackage.photoUrl}` : 'https://placehold.co/100x100/orange/white?text=Box')}
                             alt="Package"
                             className="w-20 h-20 rounded-xl object-cover bg-gray-100 dark:bg-gray-700"
                             onError={(e) => {
                                 (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/orange/white?text=Box';
                             }}
+                            whileHover={{ scale: 1.1, rotate: 3 }}
+                            transition={{ type: 'spring' }}
                         />
                         <div className="flex flex-col justify-center">
                             <h4 className="font-bold text-gray-900 dark:text-white">Package Detected</h4>
@@ -161,20 +257,24 @@ export default function Dashboard() {
                         </div>
                     </Card>
                 ) : (
-                    <Card className="flex flex-col items-center justify-center py-8 text-center border-dashed">
-                        <div className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3">
+                    <Card className="flex flex-col items-center justify-center py-8 text-center border-dashed" delay={0.5}>
+                        <motion.div 
+                            className="w-12 h-12 bg-gray-100 dark:bg-gray-700 rounded-full flex items-center justify-center mb-3"
+                            animate={{ y: [0, -8, 0] }}
+                            transition={{ duration: 2, repeat: Infinity }}
+                        >
                             <Package className="w-6 h-6 text-gray-400 dark:text-gray-500" />
-                        </div>
+                        </motion.div>
                         <p className="font-medium text-gray-900 dark:text-white">No recent packages</p>
                         <p className="text-xs text-gray-500 dark:text-gray-400">New packages will appear here.</p>
                     </Card>
                 )}
-            </div>
+            </motion.div>
 
             <UnlockDoorModal
                 isOpen={isUnlockModalOpen}
                 onClose={() => setIsUnlockModalOpen(false)}
             />
-        </div>
+        </motion.div>
     );
 }
