@@ -459,15 +459,23 @@ bool captureAndUploadWithRetry(const char* reason, float cm){
   const int MAX_TRY = 5;
   for (int attempt=1; attempt<=MAX_TRY; ++attempt){
     if (stopAll) return false;
-    flashOn(true); delay(80);
+    
+    Serial.printf("[PHOTO] Attempt %d/%d - Capturing...\n", attempt, MAX_TRY);
+    
+    // Capture dengan flash - timing yang lebih baik
+    flashOn(true); 
+    delay(200); // Flash lebih lama untuk exposure lebih baik
     camera_fb_t* fb = esp_camera_fb_get();
     flashOn(false);
 
     if (!fb){
+      Serial.printf("[PHOTO] ❌ Capture failed attempt %d/%d\n", attempt, MAX_TRY);
       mqtt.publish(T_PHSTAT.c_str(), "{\"ok\":false,\"err\":\"no_frame\"}", false);
       delay(500 * attempt);
       continue;
     }
+    
+    Serial.printf("[PHOTO] ✅ Frame captured: %d bytes\n", fb->len);
 
     String meta = String("{\"deviceId\":\"")+DEV_ID+
                   "\",\"reason\":\""+String(reason)+
@@ -497,7 +505,9 @@ bool captureAndUploadWithRetry(const char* reason, float cm){
     esp_camera_fb_return(fb);
 
     if (ur.ok) {
-      Serial.printf("[PHOTO] Upload success on attempt %d (HTTP %d)\n", attempt, ur.http);
+      Serial.printf("[PHOTO] ✅✅✅ Upload SUCCESS on attempt %d (HTTP %d)\n", attempt, ur.http);
+      Serial.println("[PHOTO] Photo saved to backend & will be sent to WhatsApp!");
+      Serial.println("[PHOTO] Photo available in mobile app gallery!");
       return true;
     }
 
@@ -1041,7 +1051,6 @@ void i2cRecover() {
 }
 
 bool initCameraSafe(){
-  // Try I2C recovery first
   i2cRecover();
   
   camera_config_t c{};
@@ -1051,14 +1060,59 @@ bool initCameraSafe(){
   c.pin_xclk=XCLK_GPIO_NUM; c.pin_pclk=PCLK_GPIO_NUM; c.pin_vsync=VSYNC_GPIO_NUM; c.pin_href=HREF_GPIO_NUM;
   c.pin_sccb_sda=SIOD_GPIO_NUM; c.pin_sccb_scl=SIOC_GPIO_NUM;
   c.pin_pwdn=PWDN_GPIO_NUM; c.pin_reset=RESET_GPIO_NUM;
-  c.xclk_freq_hz=10000000;
+  c.xclk_freq_hz=20000000;  // 20MHz untuk stabilitas (naik dari 10MHz)
   c.pixel_format=PIXFORMAT_JPEG;
-  c.frame_size=FRAMESIZE_VGA;
-  c.jpeg_quality=12;
-  c.fb_count=1;
-  c.fb_location=CAMERA_FB_IN_DRAM;
   c.grab_mode=CAMERA_GRAB_WHEN_EMPTY;
-  return (esp_camera_init(&c) == ESP_OK);
+  
+  // TRY TO INIT PSRAM MANUALLY (for ESP32-S modules that don't auto-detect)
+  bool hasPsram = psramFound();
+  if (!hasPsram) {
+    Serial.println("[CAM] PSRAM not detected, trying manual init...");
+    if (psramInit()) {
+      hasPsram = true;
+      Serial.printf("[CAM] ✅ Manual PSRAM init SUCCESS! Size: %d bytes\n", ESP.getPsramSize());
+    } else {
+      Serial.println("[CAM] ⚠️ Manual PSRAM init failed - will use DRAM mode");
+    }
+  }
+  
+  // ADAPTIVE CONFIG: PSRAM vs DRAM
+  if (hasPsram) {
+    // PSRAM Mode: High quality
+    Serial.println("[CAM] Config: PSRAM mode - High quality (UXGA)");
+    c.frame_size=FRAMESIZE_UXGA;  // 1600x1200 - Maximum quality
+    c.jpeg_quality=10;  // High quality (lower = better, 10-63 range)
+    c.fb_count=2;  // Double buffer for stability
+    c.fb_location=CAMERA_FB_IN_PSRAM;
+  } else {
+    // DRAM Mode: Optimized VGA quality
+    Serial.println("[CAM] Config: DRAM mode - VGA quality (640x480)");
+    c.frame_size=FRAMESIZE_VGA;  // 640x480 - Good quality, fits in DRAM
+    c.jpeg_quality=10;  // High quality JPEG compression
+    c.fb_count=1;  // Single buffer to save DRAM
+    c.fb_location=CAMERA_FB_IN_DRAM;
+  }
+  
+  esp_err_t err = esp_camera_init(&c);
+  if (err != ESP_OK) {
+    Serial.printf("[CAM-ERR] Init failed: 0x%x\n", err);
+    return false;
+  }
+  
+  // CRITICAL: Delay setelah init untuk stabilisasi sensor
+  delay(500);
+  
+  // Test capture untuk validasi
+  camera_fb_t* test = esp_camera_fb_get();
+  if (test) {
+    Serial.printf("[CAM] ✅ Init OK - Test frame: %d bytes (Mode: %s)\n", 
+                  test->len, hasPsram ? "PSRAM" : "DRAM");
+    esp_camera_fb_return(test);
+    return true;
+  } else {
+    Serial.println("[CAM-ERR] Init OK but fb_get failed - memory issue?");
+    return false;
+  }
 }
 
 // ===================== SETUP/LOOP =====================
@@ -1082,6 +1136,33 @@ void setup(){
   
   pinMode(PIN_FLASH, OUTPUT); digitalWrite(PIN_FLASH, LOW);
   Serial.println("[BOOT] GPIO OK");
+
+  // Check PSRAM availability
+  Serial.println("[BOOT] Checking PSRAM...");
+  bool hasPsram = psramFound();
+  if (!hasPsram) {
+    Serial.println("[BOOT] PSRAM not auto-detected, trying manual init...");
+    if (psramInit()) {
+      hasPsram = true;
+      Serial.printf("[BOOT] ✅ Manual PSRAM init SUCCESS!\n");
+      Serial.printf("[BOOT] PSRAM Size: %d bytes\n", ESP.getPsramSize());
+      Serial.printf("[BOOT] Free PSRAM: %d bytes\n", ESP.getFreePsram());
+    } else {
+      Serial.println("[BOOT] ⚠️ Manual PSRAM init failed - will use DRAM mode");
+    }
+  }
+  
+  if (hasPsram) {
+    Serial.printf("[BOOT] ✅ PSRAM found: %d bytes\n", ESP.getPsramSize());
+    Serial.printf("[BOOT] Free PSRAM: %d bytes\n", ESP.getFreePsram());
+    Serial.println("[BOOT] 📸 Will use HIGH QUALITY mode (UXGA 1600x1200)");
+  } else {
+    Serial.println("[BOOT] ⚠️ PSRAM NOT available - using DRAM mode");
+    Serial.println("[BOOT] 📸 Will use VGA mode (640x480) - Good quality!");
+    Serial.println("[BOOT] ℹ️ Note: Your ESP32-CAM module does not have PSRAM chip");
+    Serial.println("[BOOT]    This is normal for some clone modules");
+    Serial.println("[BOOT]    VGA resolution is sufficient for package detection");
+  }
 
   Serial.println("[BOOT] Initializing Camera...");
   if (!initCameraSafe()){

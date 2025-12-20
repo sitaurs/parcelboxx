@@ -617,20 +617,31 @@ bool initCameraSafe(){
   c.pixel_format=PIXFORMAT_JPEG;
   c.grab_mode=CAMERA_GRAB_WHEN_EMPTY;
   
-  // ADAPTIVE CONFIG: PSRAM vs DRAM
+  // TRY TO INIT PSRAM MANUALLY (for ESP32-S modules that don't auto-detect)
   bool hasPsram = psramFound();
+  if (!hasPsram) {
+    Serial.println("[CAM] PSRAM not detected, trying manual init...");
+    if (psramInit()) {
+      hasPsram = true;
+      Serial.printf("[CAM] ✅ Manual PSRAM init SUCCESS! Size: %d bytes\n", ESP.getPsramSize());
+    } else {
+      Serial.println("[CAM] ⚠️ Manual PSRAM init failed - will use DRAM mode");
+    }
+  }
+  
+  // ADAPTIVE CONFIG: PSRAM vs DRAM
   if (hasPsram) {
     // PSRAM Mode: High quality
-    Serial.println("[CAM] Config: PSRAM mode - High quality (SVGA)");
-    c.frame_size=FRAMESIZE_SVGA;  // 800x600
-    c.jpeg_quality=10;  // High quality
-    c.fb_count=2;  // Double buffer
+    Serial.println("[CAM] Config: PSRAM mode - High quality (UXGA)");
+    c.frame_size=FRAMESIZE_UXGA;  // 1600x1200 - Maximum quality
+    c.jpeg_quality=10;  // High quality (lower = better, 10-63 range)
+    c.fb_count=2;  // Double buffer for stability
     c.fb_location=CAMERA_FB_IN_PSRAM;
   } else {
-    // DRAM Mode: Lower resolution for stability
-    Serial.println("[CAM] Config: DRAM mode - Standard quality (QVGA)");
-    c.frame_size=FRAMESIZE_QVGA;  // 320x240 - fits in DRAM
-    c.jpeg_quality=12;  // Balanced quality
+    // DRAM Mode: Optimized VGA quality
+    Serial.println("[CAM] Config: DRAM mode - VGA quality (640x480)");
+    c.frame_size=FRAMESIZE_VGA;  // 640x480 - Good quality, fits in DRAM
+    c.jpeg_quality=10;  // High quality JPEG compression
     c.fb_count=1;  // Single buffer to save DRAM
     c.fb_location=CAMERA_FB_IN_DRAM;
   }
@@ -667,10 +678,12 @@ void setup(){
   Serial.println("════════════════════════════════════════════");
   Serial.println("   ESP32-CAM SmartParcel - NO HOLDER MODE   ");
   Serial.println("════════════════════════════════════════════");
-  Serial.println("   Firmware: esp32cam-no-holder v1.0        ");
+  Serial.println("   Firmware: esp32cam-no-holder v1.2        ");
   Serial.println("   Features:                                ");
   Serial.println("   ✓ HC-SR04 Detection                      ");
   Serial.println("   ✓ Instant Photo Capture                  ");
+  Serial.println("   ✓ VGA Quality (640x480) - No PSRAM       ");
+  Serial.println("   ✓ Optimized for Clone Modules            ");
   Serial.println("   ✓ Retry Upload Until Success             ");
   Serial.println("   ✓ WhatsApp Notification                  ");
   Serial.println("   ✓ Gallery Save                           ");
@@ -692,16 +705,28 @@ void setup(){
   // Check PSRAM availability (optional for AI-Thinker)
   Serial.println("[BOOT] Checking PSRAM...");
   bool hasPsram = psramFound();
+  if (!hasPsram) {
+    Serial.println("[BOOT] PSRAM not auto-detected, trying manual init...");
+    if (psramInit()) {
+      hasPsram = true;
+      Serial.printf("[BOOT] ✅ Manual PSRAM init SUCCESS!\n");
+      Serial.printf("[BOOT] PSRAM Size: %d bytes\n", ESP.getPsramSize());
+      Serial.printf("[BOOT] Free PSRAM: %d bytes\n", ESP.getFreePsram());
+    } else {
+      Serial.println("[BOOT] ⚠️ Manual PSRAM init failed - will use DRAM mode");
+    }
+  }
+  
   if (hasPsram) {
     Serial.printf("[BOOT] ✅ PSRAM found: %d bytes\n", ESP.getPsramSize());
     Serial.printf("[BOOT] Free PSRAM: %d bytes\n", ESP.getFreePsram());
+    Serial.println("[BOOT] 📸 Will use HIGH QUALITY mode (UXGA 1600x1200)");
   } else {
-    Serial.println("[BOOT] ⚠️ PSRAM NOT detected - using DRAM mode");
-    Serial.println("[BOOT] Will use lower resolution (QVGA) for stability");
-    Serial.println("[BOOT] ℹ️ For better quality, enable PSRAM in Arduino IDE:");
-    Serial.println("[BOOT]    Tools -> Board -> ESP32 Arduino -> AI Thinker ESP32-CAM");
-    Serial.println("[BOOT]    Tools -> Partition Scheme -> Huge APP (3MB No OTA/1MB SPIFFS)");
-    Serial.println("[BOOT]    Tools -> PSRAM -> Enabled");
+    Serial.println("[BOOT] ⚠️ PSRAM NOT available - using DRAM mode");
+    Serial.println("[BOOT] 📸 Will use VGA mode (640x480) - Good quality!");
+    Serial.println("[BOOT] ℹ️ Note: Your ESP32-CAM module does not have PSRAM chip");
+    Serial.println("[BOOT]    This is normal for some clone modules");
+    Serial.println("[BOOT]    VGA resolution is sufficient for package detection");
   }
 
   Serial.println("[BOOT] Initializing Camera...");
