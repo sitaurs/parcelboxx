@@ -328,66 +328,26 @@ bool captureAndUploadUntilSuccess(const char* reason, float cm){
   int attempt = 0;
   int captureFails = 0;
   
-  // CRITICAL: Camera warmup sequence for reliable first capture
-  // The OV2640 sensor needs time to stabilize after being idle
-  Serial.println("[PHOTO] Camera warmup sequence starting...");
+  // CRITICAL: Quick camera warmup (camera already pre-warmed at boot)
+  // Just do minimal warmup to ensure sensor is ready
+  Serial.println("[PHOTO] Quick camera warmup...");
   
-  // Step 1: I2C recovery to ensure sensor communication
+  // Quick I2C check
   i2cRecover();
-  delay(50);
+  delay(30);
   
-  // Step 2: Turn on flash briefly to "wake up" the sensor AGC/AEC
-  Serial.println("[PHOTO] Flash warmup for sensor AGC/AEC...");
+  // Just 1 warmup capture with flash (camera should be ready from boot prewarm)
   flashOn(true);
-  delay(150);
-  
-  // Step 3: Do 3 warmup captures WITH flash to stabilize sensor
-  // These captures "prime" the sensor's auto-exposure
-  Serial.println("[PHOTO] Warmup captures to stabilize sensor...");
-  int warmupSuccess = 0;
-  for(int i = 0; i < 3; i++) {
-    camera_fb_t* warmup = esp_camera_fb_get();
-    if (warmup) {
-      warmupSuccess++;
-      Serial.printf("[PHOTO] Warmup %d OK (%d bytes)\n", i+1, warmup->len);
-      esp_camera_fb_return(warmup);
-    } else {
-      Serial.printf("[PHOTO] Warmup %d - no frame\n", i+1);
-    }
-    delay(100); // Give sensor time between captures
+  delay(100);
+  camera_fb_t* warmup = esp_camera_fb_get();
+  if (warmup) {
+    Serial.printf("[PHOTO] Warmup OK (%d bytes) - ready!\n", warmup->len);
+    esp_camera_fb_return(warmup);
+  } else {
+    Serial.println("[PHOTO] Warmup frame failed - will capture anyway");
   }
   flashOn(false);
-  
-  // Step 4: If warmup failed, do full recovery
-  if (warmupSuccess == 0) {
-    Serial.println("[PHOTO] Warmup failed - attempting I2C recovery...");
-    i2cRecover();
-    delay(300);
-    
-    // Try one more with longer flash
-    flashOn(true);
-    delay(200);
-    camera_fb_t* recovery = esp_camera_fb_get();
-    flashOn(false);
-    if (recovery) {
-      Serial.printf("[PHOTO] Recovery capture OK (%d bytes)\n", recovery->len);
-      esp_camera_fb_return(recovery);
-    } else {
-      Serial.println("[PHOTO] Recovery capture also failed - will try anyway");
-    }
-  }
-  
-  // Step 5: Final flush to clear any stale frames
-  Serial.println("[PHOTO] Final buffer flush...");
-  for(int i = 0; i < 2; i++) {
-    camera_fb_t* flush = esp_camera_fb_get();
-    if (flush) {
-      esp_camera_fb_return(flush);
-    }
-    delay(30);
-  }
-  
-  Serial.printf("[PHOTO] Warmup complete (%d/3 successful) - ready for capture\n", warmupSuccess);
+  delay(50);
   
   while (attempt < MAX_ATTEMPTS) {
     if (stopAll) return false;
@@ -917,6 +877,45 @@ void setup(){
   mqtt.setClient(tcp);
   ensureMQTT();
   Serial.println("[BOOT] MQTT OK");
+  
+  // ===== CRITICAL: Pre-warm camera for first detection =====
+  // Do full camera reinit cycle NOW so first detection is instant
+  Serial.println("");
+  Serial.println("[BOOT] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  Serial.println("[BOOT] 📸 PRE-WARMING CAMERA FOR INSTANT FIRST CAPTURE");
+  Serial.println("[BOOT] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+  
+  // Step 1: Deinit and reinit camera (same as recovery cycle)
+  Serial.println("[BOOT] Reinitializing camera...");
+  esp_camera_deinit();
+  delay(500);
+  
+  if (initCameraSafe()) {
+    Serial.println("[BOOT] ✅ Camera reinit OK");
+    
+    // Step 2: Do warmup captures with flash (same as detection warmup)
+    Serial.println("[BOOT] Warming up sensor with flash...");
+    flashOn(true);
+    delay(200);
+    
+    int warmupOK = 0;
+    for(int i = 0; i < 5; i++) {
+      camera_fb_t* w = esp_camera_fb_get();
+      if (w) {
+        warmupOK++;
+        Serial.printf("[BOOT] Warmup capture %d OK (%d bytes)\n", i+1, w->len);
+        esp_camera_fb_return(w);
+      }
+      delay(100);
+    }
+    flashOn(false);
+    
+    Serial.printf("[BOOT] ✅ Camera pre-warmed (%d/5 captures OK)\n", warmupOK);
+    Serial.println("[BOOT] First detection will be INSTANT!");
+  } else {
+    Serial.println("[BOOT] ⚠️ Camera prewarm failed - will retry on first detection");
+  }
+  Serial.println("[BOOT] ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
   
   Serial.println("");
   Serial.println("════════════════════════════════════════════");
