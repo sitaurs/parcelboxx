@@ -79,7 +79,7 @@ inline void relayOn() {  // pintu terbuka
 }
 
 // ----------------- Pengaturan Doorlock -------------------
-String pinBenar = "432432";       // PIN default
+String pinBenar = "358358";       // PIN default - harus sama dengan backend pins.json
 String inputUser = "";          // buffer input
 const byte maxLen = 8;          // panjang maksimum input
 
