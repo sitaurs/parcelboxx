@@ -1,12 +1,11 @@
 import { useState, useEffect } from 'react';
-import { Wifi, Lock, Signal, Package, Zap, VolumeX, Unlock } from 'lucide-react';
+import { Wifi, Lock, Signal, Package, VolumeX, Unlock } from 'lucide-react';
 import { useStore } from '../store/useStore';
-import { deviceAPI, packageAPI, API_CONFIG } from '../services/api';
+import { deviceAPI, packageAPI, API_CONFIG, API_URL } from '../services/api';
 import { useToast } from '../hooks/useToast';
 import { formatDate } from '../utils/formatter';
 import Card from '../components/Card';
 import UnlockDoorModal from '../components/modals/UnlockDoorModal';
-import ConfirmationModal from '../components/ConfirmationModal';
 
 export default function Dashboard() {
     const { deviceStatus, setDeviceStatus } = useStore();
@@ -15,8 +14,6 @@ export default function Dashboard() {
     const [stats, setStats] = useState({ today: 0, thisWeek: 0, total: 0 });
     const [latestPackage, setLatestPackage] = useState<any>(null);
     const [isUnlockModalOpen, setIsUnlockModalOpen] = useState(false);
-    const [showReleaseConfirm, setShowReleaseConfirm] = useState(false);
-    const [isReleasing, setIsReleasing] = useState(false);
 
     const loadData = async () => {
         try {
@@ -41,23 +38,6 @@ export default function Dashboard() {
         const interval = setInterval(loadData, API_CONFIG.POLLING_INTERVAL);
         return () => clearInterval(interval);
     }, []);
-
-    const handleReleaseHolder = () => {
-        setShowReleaseConfirm(true);
-    };
-
-    const confirmReleaseHolder = async () => {
-        setIsReleasing(true);
-        try {
-            await deviceAPI.controlHolder('pulse', 2000);
-            success('Holder dilepas!');
-            setShowReleaseConfirm(false);
-        } catch (err) {
-            error('Gagal melepas holder');
-        } finally {
-            setIsReleasing(false);
-        }
-    };
 
     const handleStopBuzzer = async () => {
         try {
@@ -142,15 +122,7 @@ export default function Dashboard() {
             {/* Quick Actions */}
             <div>
                 <h3 className="font-semibold text-gray-900 dark:text-white mb-3">Quick Actions</h3>
-                <div className="grid grid-cols-3 gap-3">
-                    <button
-                        onClick={handleReleaseHolder}
-                        className="flex flex-col items-center justify-center gap-2 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-3xl active:scale-95 transition-transform"
-                    >
-                        <Zap className="w-6 h-6" />
-                        <span className="text-[10px] font-bold text-center leading-tight">Release<br />Holder</span>
-                    </button>
-
+                <div className="grid grid-cols-2 gap-3">
                     <button
                         onClick={handleStopBuzzer}
                         className="flex flex-col items-center justify-center gap-2 p-4 bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400 rounded-3xl active:scale-95 transition-transform"
@@ -175,9 +147,12 @@ export default function Dashboard() {
                 {latestPackage ? (
                     <Card className="flex gap-4 !p-4 active:scale-95 transition-transform cursor-pointer">
                         <img
-                            src={latestPackage.thumbUrl || 'https://placehold.co/100x100/orange/white?text=Box'}
+                            src={latestPackage.photoPath ? `${API_URL.replace('/api', '')}/uploads/${latestPackage.photoPath}` : 'https://placehold.co/100x100/orange/white?text=Box'}
                             alt="Package"
                             className="w-20 h-20 rounded-xl object-cover bg-gray-100 dark:bg-gray-700"
+                            onError={(e) => {
+                                (e.target as HTMLImageElement).src = 'https://placehold.co/100x100/orange/white?text=Box';
+                            }}
                         />
                         <div className="flex flex-col justify-center">
                             <h4 className="font-bold text-gray-900 dark:text-white">Package Detected</h4>
@@ -199,16 +174,6 @@ export default function Dashboard() {
             <UnlockDoorModal
                 isOpen={isUnlockModalOpen}
                 onClose={() => setIsUnlockModalOpen(false)}
-            />
-
-            <ConfirmationModal
-                isOpen={showReleaseConfirm}
-                onClose={() => setShowReleaseConfirm(false)}
-                onConfirm={confirmReleaseHolder}
-                title="Lepas Penahan Paket"
-                message="Yakin melepas penahan paket sekarang?"
-                variant="warning"
-                isLoading={isReleasing}
             />
         </div>
     );

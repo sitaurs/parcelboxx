@@ -2,6 +2,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Download, Share2, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { formatDate } from '../../utils/formatter';
 import { useToast } from '../../hooks/useToast';
+import { API_URL } from '../../services/api';
+
+// Helper function to get full image URL
+const getImageUrl = (photo: any) => {
+    if (!photo) return '';
+    if (photo.photoPath) {
+        return `${API_URL.replace('/api', '')}/uploads/${photo.photoPath}`;
+    }
+    return photo.photoUrl || 'https://placehold.co/400x400/orange/white?text=No+Image';
+};
 
 interface PhotoLightboxProps {
     isOpen: boolean;
@@ -19,7 +29,8 @@ export default function PhotoLightbox({ isOpen, onClose, photo, onNext, onPrev, 
 
     const handleDownload = async () => {
         try {
-            const response = await fetch(photo.photoUrl);
+            const imageUrl = getImageUrl(photo);
+            const response = await fetch(imageUrl);
             const blob = await response.blob();
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -36,19 +47,20 @@ export default function PhotoLightbox({ isOpen, onClose, photo, onNext, onPrev, 
     };
 
     const handleShare = async () => {
+        const imageUrl = getImageUrl(photo);
         if (navigator.share) {
             try {
                 await navigator.share({
                     title: 'SmartParcel Photo',
                     text: `Paket diterima pada ${formatDate(photo.timestamp)}`,
-                    url: photo.photoUrl,
+                    url: imageUrl,
                 });
             } catch (e) {
                 // Share cancelled
             }
         } else {
             // Fallback copy link
-            navigator.clipboard.writeText(photo.photoUrl);
+            navigator.clipboard.writeText(imageUrl);
             success('Link foto disalin');
         }
     };
@@ -78,9 +90,12 @@ export default function PhotoLightbox({ isOpen, onClose, photo, onNext, onPrev, 
                         key={photo.id}
                         initial={{ opacity: 0, scale: 0.9 }}
                         animate={{ opacity: 1, scale: 1 }}
-                        src={photo.photoUrl}
+                        src={getImageUrl(photo)}
                         alt="Full size"
                         className="max-w-full max-h-full object-contain"
+                        onError={(e) => {
+                            (e.target as HTMLImageElement).src = 'https://placehold.co/400x400/orange/white?text=Error';
+                        }}
                     />
 
                     {/* Navigation */}
