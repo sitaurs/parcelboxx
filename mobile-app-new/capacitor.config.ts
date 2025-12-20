@@ -5,7 +5,9 @@ const config: CapacitorConfig = {
   appName: 'SmartParcel',
   webDir: 'dist',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'http',
+    cleartext: true,
+    hostname: 'localhost'
   },
   plugins: {
     SplashScreen: {
