@@ -97,7 +97,7 @@ export default function ChangeDoorPinModal({ isOpen, onClose }: ChangeDoorPinMod
                             PIN Baru (4-8 digit)
                         </label>
                         <input
-                            type="password"
+                            type="tel"
                             inputMode="numeric"
                             pattern="[0-9]*"
                             value={newPin}
@@ -118,7 +118,7 @@ export default function ChangeDoorPinModal({ isOpen, onClose }: ChangeDoorPinMod
                             Konfirmasi PIN
                         </label>
                         <input
-                            type="password"
+                            type="tel"
                             inputMode="numeric"
                             pattern="[0-9]*"
                             value={confirmPin}

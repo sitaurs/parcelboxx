@@ -43,8 +43,9 @@ export default function UnlockDoorModal({ isOpen, onClose }: UnlockDoorModalProp
 
                 <Input
                     label="PIN Keamanan"
-                    type="password"
+                    type="tel"
                     inputMode="numeric"
+                    pattern="[0-9]*"
                     placeholder="Masukkan PIN"
                     value={pin}
                     onChange={(e) => setPin(e.target.value.replace(/\D/g, '').slice(0, 8))}

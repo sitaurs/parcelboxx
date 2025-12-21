@@ -19,7 +19,7 @@ export default function Layout() {
     ];
 
     return (
-        <div className="min-h-screen bg-[var(--bg-primary)] font-sans text-[var(--text-primary)]">
+        <div className="min-h-screen bg-[var(--bg-primary)] font-sans text-[var(--text-primary)] pt-safe">
             <main className="pb-24">
                 <AnimatePresence mode="wait">
                     <motion.div
