@@ -420,25 +420,35 @@ async function notifyWhatsAppBackend(data) {
     // Send to all recipients
     const sendPromises = recipients.map(async (recipient) => {
       try {
+        // Handle both old string format and new object format {phone, name}
+        const phone = typeof recipient === 'string' ? recipient : recipient.phone;
+        const name = typeof recipient === 'string' ? phone : (recipient.name || phone);
+        
+        if (!phone) {
+          console.warn(`⚠️ Skipping invalid recipient:`, recipient);
+          return { success: false, error: 'Invalid recipient' };
+        }
+        
         let result;
         
         if (imageUrl) {
           // Send image with caption
-          result = await gowa.sendImage(recipient, message, imageUrl, true);
+          result = await gowa.sendImage(phone, message, imageUrl, true);
         } else {
           // Send text only
-          result = await gowa.sendText(recipient, message);
+          result = await gowa.sendText(phone, message);
         }
 
         if (result.success) {
-          console.log(`✅ WhatsApp sent to ${recipient}: ${result.messageId}`);
+          console.log(`✅ WhatsApp sent to ${name} (${phone}): ${result.messageId}`);
         } else {
-          console.error(`❌ Failed to send WhatsApp to ${recipient}:`, result.error);
+          console.error(`❌ Failed to send WhatsApp to ${name} (${phone}):`, result.error);
         }
 
         return result;
       } catch (error) {
-        console.error(`❌ Error sending to ${recipient}:`, error.message);
+        const phone = typeof recipient === 'string' ? recipient : recipient.phone;
+        console.error(`❌ Error sending to ${phone}:`, error.message);
         return { success: false, error: error.message };
       }
     });
