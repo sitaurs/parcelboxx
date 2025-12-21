@@ -152,12 +152,21 @@ async function sendWhatsAppNotification(packageData) {
     for (const recipient of recipients) {
       try {
         // Handle both old string format and new object format {phone, name}
-        const phone = typeof recipient === 'string' ? recipient : recipient.phone;
+        let phone = typeof recipient === 'string' ? recipient : recipient.phone;
         const name = typeof recipient === 'string' ? phone : (recipient.name || phone);
         
         if (!phone) {
           console.warn(`⚠️ Skipping invalid recipient:`, recipient);
           continue;
+        }
+        
+        // Auto-detect group format and add @g.us suffix if needed
+        // Group IDs start with 120363... or contain '-' (old format like 628xxx-timestamp)
+        if (!phone.includes('@')) {
+          if (phone.startsWith('120363') || phone.includes('-')) {
+            phone = `${phone}@g.us`;
+            console.log(`📱 Detected group recipient: ${phone}`);
+          }
         }
         
         const result = await gowa.sendImage(phone, message, photoUrl, true);
