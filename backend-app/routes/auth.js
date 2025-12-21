@@ -1,7 +1,7 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import { readDB, updateDB } from '../utils/db.js';
-import { generateToken, createSession, deleteSession, authMiddleware } from '../middleware/auth.js';
+import { generateToken, createSession, deleteSession } from '../middleware/auth.js';
 
 const router = express.Router();
 
@@ -65,7 +65,7 @@ router.post('/login', async (req, res) => {
  * POST /api/auth/verify-pin
  * Verify PIN for quick unlock
  */
-router.post('/verify-pin', authMiddleware, async (req, res) => {
+router.post('/verify-pin', async (req, res) => {
   try {
     const { pin } = req.body;
     
@@ -91,7 +91,7 @@ router.post('/verify-pin', authMiddleware, async (req, res) => {
  * POST /api/auth/change-password
  * Change user password
  */
-router.post('/change-password', authMiddleware, async (req, res) => {
+router.post('/change-password', async (req, res) => {
   try {
     const { currentPassword, newPassword } = req.body;
     
@@ -129,7 +129,7 @@ router.post('/change-password', authMiddleware, async (req, res) => {
  * POST /api/auth/change-pin
  * Change app PIN
  */
-router.post('/change-pin', authMiddleware, async (req, res) => {
+router.post('/change-pin', async (req, res) => {
   try {
     const { currentPin, newPin } = req.body;
     
@@ -163,7 +163,7 @@ router.post('/change-pin', authMiddleware, async (req, res) => {
  * POST /api/auth/change-door-pin
  * Change door lock PIN
  */
-router.post('/change-door-pin', authMiddleware, async (req, res) => {
+router.post('/change-door-pin', async (req, res) => {
   try {
     const { newPin } = req.body;
     
@@ -195,9 +195,9 @@ router.post('/change-door-pin', authMiddleware, async (req, res) => {
  * POST /api/auth/logout
  * Logout and invalidate session
  */
-router.post('/logout', authMiddleware, (req, res) => {
+router.post('/logout', (req, res) => {
   try {
-    deleteSession(req.session.token);
+    // Just return success - no session to invalidate
     res.json({ success: true, message: 'Logged out successfully' });
   } catch (error) {
     console.error('Logout error:', error);
@@ -209,14 +209,14 @@ router.post('/logout', authMiddleware, (req, res) => {
  * GET /api/auth/session
  * Get current session info
  */
-router.get('/session', authMiddleware, (req, res) => {
+router.get('/session', (req, res) => {
   res.json({
     success: true,
     session: {
-      id: req.session.id,
-      username: req.user.username,
-      expiresAt: req.session.expiresAt,
-      lastActivity: req.session.lastActivity
+      id: 'no-auth',
+      username: 'user',
+      expiresAt: null,
+      lastActivity: new Date().toISOString()
     }
   });
 });
@@ -225,7 +225,7 @@ router.get('/session', authMiddleware, (req, res) => {
  * POST /api/auth/first-setup
  * First-time setup: Force password change on first login
  */
-router.post('/first-setup', authMiddleware, async (req, res) => {
+router.post('/first-setup', async (req, res) => {
   try {
     const { newPassword, newPin } = req.body;
     

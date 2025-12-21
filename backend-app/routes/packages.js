@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
 import { readDB, appendDB, writeDB } from '../utils/db.js';
-import { authMiddleware, deviceTokenMiddleware } from '../middleware/auth.js';
+import { deviceTokenMiddleware } from '../middleware/auth.js';
 import GowaService from '../services/gowa.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -173,7 +173,7 @@ async function sendWhatsAppNotification(packageData) {
  * GET /api/packages
  * Get all packages (for mobile app)
  */
-router.get('/', authMiddleware, (req, res) => {
+router.get('/', (req, res) => {
   try {
     const { limit, offset } = req.query;
     let packages = readDB('packages');
@@ -204,7 +204,7 @@ router.get('/', authMiddleware, (req, res) => {
  * GET /api/packages/:id
  * Get single package by ID
  */
-router.get('/:id', authMiddleware, (req, res) => {
+router.get('/:id', (req, res) => {
   try {
     const packages = readDB('packages');
     const pkg = packages.find(p => p.id === parseInt(req.params.id));
@@ -228,7 +228,7 @@ router.get('/:id', authMiddleware, (req, res) => {
  * DELETE /api/packages/:id
  * Delete package by ID
  */
-router.delete('/:id', authMiddleware, (req, res) => {
+router.delete('/:id', (req, res) => {
   try {
     const packages = readDB('packages');
     const pkg = packages.find(p => p.id === parseInt(req.params.id));
@@ -263,7 +263,7 @@ router.delete('/:id', authMiddleware, (req, res) => {
  * GET /api/packages/stats
  * Get package statistics
  */
-router.get('/stats/summary', authMiddleware, (req, res) => {
+router.get('/stats/summary', (req, res) => {
   try {
     const packages = readDB('packages');
     
@@ -303,7 +303,7 @@ router.get('/stats/summary', authMiddleware, (req, res) => {
  * POST /api/packages/:id/pickup
  * Mark package as picked up
  */
-router.post('/:id/pickup', authMiddleware, (req, res) => {
+router.post('/:id/pickup', (req, res) => {
   try {
     const packages = readDB('packages');
     const packageIndex = packages.findIndex(p => p.id === parseInt(req.params.id));

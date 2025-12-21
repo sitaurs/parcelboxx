@@ -2,7 +2,6 @@
 // Menggantikan backend-whatsapp dengan GOWA API integration
 
 import express from 'express';
-import { authMiddleware } from '../middleware/auth.js';
 import { readDB, updateDB, writeDB } from '../utils/db.js';
 import GowaService from '../services/gowa.js';
 
@@ -15,7 +14,7 @@ const gowa = new GowaService();
  * GET /api/whatsapp/status
  * Get WhatsApp connection status
  */
-router.get('/status', authMiddleware, async (req, res) => {
+router.get('/status', async (req, res) => {
   try {
     const status = await gowa.getStatus();
     const config = readDB('whatsappConfig');
@@ -50,7 +49,7 @@ router.get('/status', authMiddleware, async (req, res) => {
  * POST /api/whatsapp/pairing-code
  * Generate pairing code for WhatsApp login
  */
-router.post('/pairing-code', authMiddleware, async (req, res) => {
+router.post('/pairing-code', async (req, res) => {
   try {
     const { phone } = req.body;
 
@@ -97,7 +96,7 @@ router.post('/pairing-code', authMiddleware, async (req, res) => {
  * POST /api/whatsapp/logout
  * Logout from WhatsApp and remove session
  */
-router.post('/logout', authMiddleware, async (req, res) => {
+router.post('/logout', async (req, res) => {
   try {
     const result = await gowa.logout();
 
@@ -130,7 +129,7 @@ router.post('/logout', authMiddleware, async (req, res) => {
  * POST /api/whatsapp/reconnect
  * Reconnect to WhatsApp server
  */
-router.post('/reconnect', authMiddleware, async (req, res) => {
+router.post('/reconnect', async (req, res) => {
   try {
     const result = await gowa.reconnect();
 
@@ -158,7 +157,7 @@ router.post('/reconnect', authMiddleware, async (req, res) => {
  * GET /api/whatsapp/recipients
  * Get list of WhatsApp recipients
  */
-router.get('/recipients', authMiddleware, (req, res) => {
+router.get('/recipients', (req, res) => {
   try {
     const config = readDB('whatsappConfig');
     res.json({
@@ -178,7 +177,7 @@ router.get('/recipients', authMiddleware, (req, res) => {
  * POST /api/whatsapp/recipients
  * Add WhatsApp recipient
  */
-router.post('/recipients', authMiddleware, (req, res) => {
+router.post('/recipients', (req, res) => {
   try {
     const { phone, name } = req.body;
 
@@ -236,7 +235,7 @@ router.post('/recipients', authMiddleware, (req, res) => {
  * DELETE /api/whatsapp/recipients/:phone
  * Remove WhatsApp recipient
  */
-router.delete('/recipients/:phone', authMiddleware, (req, res) => {
+router.delete('/recipients/:phone', (req, res) => {
   try {
     const { phone } = req.params;
     const cleanPhone = phone.replace(/\D/g, '');
@@ -277,7 +276,7 @@ router.delete('/recipients/:phone', authMiddleware, (req, res) => {
  * POST /api/whatsapp/test
  * Send test message
  */
-router.post('/test', authMiddleware, async (req, res) => {
+router.post('/test', async (req, res) => {
   try {
     const { phone, message } = req.body;
 
@@ -316,7 +315,7 @@ router.post('/test', authMiddleware, async (req, res) => {
  * POST /api/whatsapp/block
  * Block/unblock WhatsApp notifications
  */
-router.post('/block', authMiddleware, (req, res) => {
+router.post('/block', (req, res) => {
   try {
     const { blocked } = req.body;
 
@@ -349,7 +348,7 @@ router.post('/block', authMiddleware, (req, res) => {
  * GET /api/whatsapp/groups
  * Get list of all WhatsApp groups
  */
-router.get('/groups', authMiddleware, async (req, res) => {
+router.get('/groups', async (req, res) => {
   try {
     const result = await gowa.listGroups();
 

@@ -1,6 +1,6 @@
 import express from 'express';
 import { readDB, updateDB, writeDB } from '../utils/db.js';
-import { authMiddleware, generateDeviceToken } from '../middleware/auth.js';
+import { generateDeviceToken } from '../middleware/auth.js';
 import GowaService from '../services/gowa.js';
 import { 
   publishDeviceControl, 
@@ -95,7 +95,7 @@ async function notifySecurityAlert(ip, attempts) {
  * GET /api/device/status
  * Get current device status
  */
-router.get('/status', authMiddleware, (req, res) => {
+router.get('/status', (req, res) => {
   try {
     const status = getDeviceStatus();
     res.json({
@@ -112,7 +112,7 @@ router.get('/status', authMiddleware, (req, res) => {
  * GET /api/device/settings
  * Get current device settings
  */
-router.get('/settings', authMiddleware, (req, res) => {
+router.get('/settings', (req, res) => {
   try {
     const settings = readDB('settings');
     res.json({
@@ -129,7 +129,7 @@ router.get('/settings', authMiddleware, (req, res) => {
  * PUT /api/device/settings
  * Update device settings with validation
  */
-router.put('/settings', authMiddleware, async (req, res) => {
+router.put('/settings', async (req, res) => {
   try {
     const { ultra, lock, buzzer, doorLock, detection } = req.body;
     
@@ -260,7 +260,7 @@ router.put('/settings', authMiddleware, async (req, res) => {
  * POST /api/device/control/capture
  * Trigger manual photo capture
  */
-router.post('/control/capture', authMiddleware, (req, res) => {
+router.post('/control/capture', (req, res) => {
   try {
     const success = publishDeviceControl({ capture: true });
     
@@ -283,7 +283,7 @@ router.post('/control/capture', authMiddleware, (req, res) => {
  * POST /api/device/control/flash
  * Control flash LED
  */
-router.post('/control/flash', authMiddleware, (req, res) => {
+router.post('/control/flash', (req, res) => {
   try {
     const { state, ms } = req.body; // state: 'on', 'off', or 'pulse'
     
@@ -319,7 +319,7 @@ router.post('/control/flash', authMiddleware, (req, res) => {
  * POST /api/device/control/buzzer
  * Control buzzer
  */
-router.post('/control/buzzer', authMiddleware, (req, res) => {
+router.post('/control/buzzer', (req, res) => {
   try {
     const { action, ms } = req.body; // action: 'start', 'stop', 'enable', 'disable'
     
@@ -370,7 +370,7 @@ router.post('/control/buzzer', authMiddleware, (req, res) => {
  * POST /api/device/control/holder
  * Control package holder solenoid
  */
-router.post('/control/holder', authMiddleware, (req, res) => {
+router.post('/control/holder', (req, res) => {
   try {
     const { action, ms } = req.body; // action: 'open', 'closed', or 'pulse'
     
@@ -410,7 +410,7 @@ router.post('/control/holder', authMiddleware, (req, res) => {
  * Body: { pin: string } - PIN is MANDATORY for security
  * Rate Limit: Max 3 failed attempts per IP per 30s
  */
-router.post('/control/door', authMiddleware, (req, res) => {
+router.post('/control/door', (req, res) => {
   try {
     const { pin } = req.body;
     const clientIP = req.ip || req.connection.remoteAddress || 'unknown';
@@ -495,7 +495,7 @@ router.post('/control/door', authMiddleware, (req, res) => {
  * POST /api/device/control/stop-pipeline
  * Stop current pipeline execution
  */
-router.post('/control/stop-pipeline', authMiddleware, (req, res) => {
+router.post('/control/stop-pipeline', (req, res) => {
   try {
     const success = publishDeviceControl({ pipeline: 'stop' });
     
@@ -519,7 +519,7 @@ router.post('/control/stop-pipeline', authMiddleware, (req, res) => {
  * Generate JWT token for device authentication
  * Requires user authentication
  */
-router.post('/generate-token', authMiddleware, async (req, res) => {
+router.post('/generate-token', async (req, res) => {
   try {
     const { deviceId } = req.body;
     
