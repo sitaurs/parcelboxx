@@ -65,17 +65,21 @@ async function notifySecurityAlert(ip, attempts) {
     // Send to all recipients
     const sendPromises = recipients.map(async (recipient) => {
       try {
-        const result = await gowa.sendText(recipient, message);
+        // Support both old string format and new object format
+        const phone = typeof recipient === 'string' ? recipient : recipient.phone;
+        const name = typeof recipient === 'string' ? phone : recipient.name;
+        
+        const result = await gowa.sendText(phone, message);
         
         if (result.success) {
-          console.log(`✅ Security alert sent to ${recipient}: ${result.messageId}`);
+          console.log(`✅ Security alert sent to ${name} (${phone}): ${result.messageId}`);
         } else {
-          console.error(`❌ Failed to send alert to ${recipient}:`, result.error);
+          console.error(`❌ Failed to send alert to ${name} (${phone}):`, result.error);
         }
         
         return result;
       } catch (error) {
-        console.error(`❌ Error sending alert to ${recipient}:`, error.message);
+        console.error(`❌ Error sending alert to ${typeof recipient === 'string' ? recipient : recipient.name}:`, error.message);
         return { success: false, error: error.message };
       }
     });

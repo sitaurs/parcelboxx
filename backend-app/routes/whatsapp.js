@@ -180,7 +180,7 @@ router.get('/recipients', authMiddleware, (req, res) => {
  */
 router.post('/recipients', authMiddleware, (req, res) => {
   try {
-    const { phone } = req.body;
+    const { phone, name } = req.body;
 
     if (!phone) {
       return res.status(400).json({
@@ -194,16 +194,28 @@ router.post('/recipients', authMiddleware, (req, res) => {
 
     const config = readDB('whatsappConfig');
     
-    // Check if already exists
-    if (config.recipients.includes(cleanPhone)) {
+    // Ensure recipients is array of objects
+    if (!Array.isArray(config.recipients)) {
+      config.recipients = [];
+    }
+    
+    // Check if already exists (by phone)
+    const exists = config.recipients.find(r => 
+      (typeof r === 'string' ? r : r.phone) === cleanPhone
+    );
+    
+    if (exists) {
       return res.status(400).json({
         success: false,
         error: 'Recipient already exists'
       });
     }
 
-    // Add recipient
-    config.recipients.push(cleanPhone);
+    // Add recipient with name
+    config.recipients.push({
+      phone: cleanPhone,
+      name: name || cleanPhone
+    });
     writeDB('whatsappConfig', config);
 
     res.json({
@@ -231,7 +243,11 @@ router.delete('/recipients/:phone', authMiddleware, (req, res) => {
 
     const config = readDB('whatsappConfig');
     
-    const index = config.recipients.indexOf(cleanPhone);
+    // Find index (support both old string format and new object format)
+    const index = config.recipients.findIndex(r => 
+      (typeof r === 'string' ? r : r.phone) === cleanPhone
+    );
+    
     if (index === -1) {
       return res.status(404).json({
         success: false,

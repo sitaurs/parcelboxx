@@ -95,8 +95,15 @@ export default function WhatsApp() {
         }
         setIsLoading(true);
         try {
-            await whatsappAPI.sendTest(recipients[0], 'Test Message from SmartParcel 📦');
-            success('Berhasil mengirim pesan test');
+            // Send to ALL recipients, not just the first one
+            const testMessage = 'Test Message from SmartParcel 📦';
+            const promises = recipients.map(recipient => {
+                const phone = typeof recipient === 'string' ? recipient : recipient.phone;
+                return whatsappAPI.sendTest(phone, testMessage);
+            });
+            
+            await Promise.all(promises);
+            success(`Berhasil mengirim pesan test ke ${recipients.length} penerima`);
         } catch (err: any) {
             error(err.message || 'Gagal mengirim pesan test');
         } finally {
@@ -171,9 +178,8 @@ export default function WhatsApp() {
         }
         setIsLoading(true);
         try {
-            await whatsappAPI.addRecipient(newRecipientPhone, newRecipientName);
+            await whatsappAPI.addRecipient(newRecipientPhone, newRecipientName || newRecipientPhone);
             success('Penerima berhasil ditambahkan');
-            setRecipients(prev => [...prev, newRecipientPhone]);
             setIsAddModalOpen(false);
             setNewRecipientPhone('');
             setNewRecipientName('');
@@ -201,18 +207,21 @@ export default function WhatsApp() {
         }
     };
 
-    const handleDeleteRecipient = (phone: string) => {
+    const handleDeleteRecipient = (recipient: any) => {
+        const phone = typeof recipient === 'string' ? recipient : recipient.phone;
+        const name = typeof recipient === 'string' ? phone : recipient.name;
+        
         setConfirmModal({
             isOpen: true,
             title: 'Hapus Penerima',
-            message: 'Hapus penerima ini dari daftar notifikasi?',
+            message: `Hapus ${name} dari daftar notifikasi?`,
             variant: 'danger',
             onConfirm: async () => {
                 try {
                     await whatsappAPI.removeRecipient(phone);
                     success('Penerima berhasil dihapus');
-                    setRecipients(prev => prev.filter(p => p !== phone));
                     closeConfirmModal();
+                    loadData();
                 } catch (err: any) {
                     error(err.message || 'Gagal menghapus');
                 }
@@ -422,7 +431,7 @@ export default function WhatsApp() {
                         className="text-xs h-10"
                         onClick={() => setIsAddModalOpen(true)}
                     >
-                        <Plus className="w-4 h-4" /> Tambah Manual
+                        <Plus className="w-4 h-4" /> Tambah Nomor
                     </Button>
                     <Button
                         variant="secondary"
@@ -441,29 +450,35 @@ export default function WhatsApp() {
                             <p className="text-xs text-gray-400 dark:text-gray-500">Tambahkan agar notifikasi berjalan</p>
                         </div>
                     ) : (
-                        recipients.map((phone, idx) => (
+                        recipients.map((recipient, idx) => {
+                            // Support both old string format and new object format
+                            const phone = typeof recipient === 'string' ? recipient : recipient.phone;
+                            const name = typeof recipient === 'string' ? recipient : recipient.name;
+                            const isGroup = phone.length > 15;
+                            
+                            return (
                             <div key={idx} className="bg-white dark:bg-gray-800 p-4 rounded-2xl border border-gray-100 dark:border-gray-700 shadow-sm flex items-center justify-between">
                                 <div className="flex items-center gap-3">
-                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${phone.length > 15 ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'
-                                        }`}>
-                                        {phone.length > 15 ? <Users className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
+                                    <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${isGroup ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-brand-50 dark:bg-brand-900/30 text-brand-600 dark:text-brand-400'}`}>
+                                        {isGroup ? <Users className="w-5 h-5" /> : <Phone className="w-5 h-5" />}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-gray-900 dark:text-white text-sm truncate max-w-[180px]">{phone}</p>
-                                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${phone.length > 15 ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
-                                            }`}>
-                                            {phone.length > 15 ? 'Group' : 'Individual'}
+                                        <p className="font-bold text-gray-900 dark:text-white text-sm truncate max-w-[180px]">{name}</p>
+                                        <p className="text-xs text-gray-500 dark:text-gray-400 font-mono truncate max-w-[180px]">{phone}</p>
+                                        <span className={`text-[10px] px-2 py-0.5 rounded-full ${isGroup ? 'bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300'}`}>
+                                            {isGroup ? 'Group' : 'Individual'}
                                         </span>
                                     </div>
                                 </div>
                                 <button
-                                    onClick={() => handleDeleteRecipient(phone)}
+                                    onClick={() => handleDeleteRecipient(recipient)}
                                     className="p-2 hover:bg-red-50 dark:hover:bg-red-900/30 text-gray-400 hover:text-red-500 rounded-full transition-colors"
                                 >
                                     <Trash2 className="w-4 h-4" />
                                 </button>
                             </div>
-                        ))
+                        );
+                        })
                     )}
                 </div>
             </div>
@@ -472,7 +487,7 @@ export default function WhatsApp() {
             <BottomSheet
                 isOpen={isAddModalOpen}
                 onClose={() => setIsAddModalOpen(false)}
-                title="Tambah Penerima"
+                title="Tambah Nomor"
             >
                 <form onSubmit={handleAddRecipient} className="space-y-4">
                     <Input
