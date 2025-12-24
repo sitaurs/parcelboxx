@@ -71,7 +71,7 @@ router.post('/pairing-code', async (req, res) => {
     if (result.success) {
       // JANGAN set isPaired = true di sini!
       // isPaired harus di-set SETELAH user confirm pairing di WhatsApp
-      
+
       res.json({
         success: true,
         pairCode: result.pairCode,
@@ -189,20 +189,31 @@ router.post('/recipients', (req, res) => {
     }
 
     // Remove any non-digit characters
-    const cleanPhone = phone.replace(/\D/g, '');
+    let cleanPhone = phone.replace(/\D/g, '');
+
+    // Auto-convert Indonesian format: 08xxx -> 628xxx
+    if (cleanPhone.startsWith('08')) {
+      cleanPhone = '62' + cleanPhone.substring(1);
+      console.log(`📱 Auto-converted phone: 08xxx -> ${cleanPhone}`);
+    }
+    // Also handle 8xxx without leading 0
+    else if (cleanPhone.startsWith('8') && cleanPhone.length >= 10 && cleanPhone.length <= 13) {
+      cleanPhone = '62' + cleanPhone;
+      console.log(`📱 Auto-converted phone: 8xxx -> ${cleanPhone}`);
+    }
 
     const config = readDB('whatsappConfig');
-    
+
     // Ensure recipients is array of objects
     if (!Array.isArray(config.recipients)) {
       config.recipients = [];
     }
-    
+
     // Check if already exists (by phone)
-    const exists = config.recipients.find(r => 
+    const exists = config.recipients.find(r =>
       (typeof r === 'string' ? r : r.phone) === cleanPhone
     );
-    
+
     if (exists) {
       return res.status(400).json({
         success: false,
@@ -241,12 +252,12 @@ router.delete('/recipients/:phone', (req, res) => {
     const cleanPhone = phone.replace(/\D/g, '');
 
     const config = readDB('whatsappConfig');
-    
+
     // Find index (support both old string format and new object format)
-    const index = config.recipients.findIndex(r => 
+    const index = config.recipients.findIndex(r =>
       (typeof r === 'string' ? r : r.phone) === cleanPhone
     );
-    
+
     if (index === -1) {
       return res.status(404).json({
         success: false,
@@ -357,22 +368,22 @@ router.get('/groups', async (req, res) => {
     if (result.success) {
       // Ensure groups is always an array
       let groupsList = [];
-      
+
       if (Array.isArray(result.groups)) {
         groupsList = result.groups;
       } else if (result.groups && typeof result.groups === 'object') {
         // If groups is an object, try to extract array from common properties
         groupsList = result.groups.groups || result.groups.data || [];
       }
-      
+
       const responseData = {
         success: true,
         groups: groupsList
       };
-      
+
       console.log('📤 SENDING GROUPS TO FRONTEND:', groupsList.length, 'groups');
       console.log('📤 Groups type:', Array.isArray(groupsList) ? 'ARRAY' : typeof groupsList);
-      
+
       res.json(responseData);
     } else {
       res.status(500).json({

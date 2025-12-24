@@ -79,16 +79,16 @@ const request = async (endpoint: string, options: RequestOptions = {}, retryCoun
         return data;
     } catch (error: any) {
         // Retry logic for network errors (not for 4xx errors)
-        const isNetworkError = error.name === 'AbortError' || 
-                               error.message === 'Failed to fetch' ||
-                               error.message.includes('network');
-        
+        const isNetworkError = error.name === 'AbortError' ||
+            error.message === 'Failed to fetch' ||
+            error.message.includes('network');
+
         if (isNetworkError && retryCount < maxRetries) {
             console.warn(`API retry ${retryCount + 1}/${maxRetries} for ${endpoint}`);
             await sleep(API_CONFIG.RETRY_DELAY * (retryCount + 1)); // Exponential backoff
             return request(endpoint, options, retryCount + 1);
         }
-        
+
         console.error(`API Error (${endpoint}):`, error);
         throw error;
     }
@@ -116,8 +116,8 @@ export const deviceAPI = {
 
     capture: () => request('/device/control/capture', { method: 'POST' }),
 
-    updateDoorPin: (pin: string) =>
-        request('/device/control/door-pin', { method: 'POST', body: JSON.stringify({ pin }) }),
+    updateDoorPin: (newPin: string) =>
+        request('/auth/change-door-pin', { method: 'POST', body: JSON.stringify({ newPin }) }),
 
     diagnostic: () => request('/device/diagnostic'),
 };
